@@ -1,0 +1,25 @@
+
+%macro enter_call 0
+    push rdi
+    push rsi
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    push rbp
+    mov rbp, rsp
+    and rsp, -0x10
+%endmacro
+
+%macro leave_call 0
+    mov rsp, rbp
+    pop rbp
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rsi
+    pop rdi
+ %endmacro

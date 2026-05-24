@@ -1,3 +1,5 @@
+%include "macros.ninc"
+
 section .rodata
 
 section .data
@@ -10,21 +12,11 @@ section .bss
 section .text
     global main
     extern __acrt_iob_func
-    extern fgets
     extern getch
     extern putch
     extern printf
 main:
-    push rdi
-    push rsi
-    push rbx
-    push r12
-    push r13
-    push r14
-    push r15
-    push rbp
-    mov rbp, rsp
-    and rsp, -0x10
+    enter_call
     sub rsp, 32
     mov rcx, 0
     call __acrt_iob_func
@@ -49,9 +41,15 @@ main:
             je .handle_bsp
             cmp r14b, 127
             je .handle_bsp
+            ; check for control codes
+            cmp r14b, 0
+            je .consume_and_loop
             cmp r14b, 0xE0
             je .check_del
             jmp .no_bsp
+            .consume_and_loop:
+            call getch
+            jmp .char_loop
             .check_del:
             call getch
             cmp al, 0x53
@@ -60,7 +58,7 @@ main:
                 ; skip if at start of buffer
                 lea r10, [rel current_word + 1]
                 cmp r12, r10
-                je .no_bsp
+                jle .char_loop
                 ; fix input
                 mov ecx, 8
                 call putch
@@ -92,14 +90,6 @@ main:
         jmp .word_loop
         .end:
     add rsp, 32
-    mov rsp, rbp
-    pop rbp
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop rbx
-    pop rsi
-    pop rdi
+    leave_call
     xor rax, rax
     ret
