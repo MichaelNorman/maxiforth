@@ -1,0 +1,9 @@
+%ifndef DEFINES
+%include "defines.ninc"
+%endif
+section .text
+
+_test:
+    lea rcx, [rel test_str]
+    call printf
+    jmp main.quit
