@@ -4,24 +4,62 @@
 section .rodata
 
 section .data
-    echo_fmt      db "I found: %s", 10, 0
-    test_str      db 10, "Ran this from the dictionary!", 10, 0
-    not_found_msg db 10, "Word does not exist in dictionary.", 10, 0
+    echo_fmt                   db "I found: %s", 10, 0
+    test_str                   db 10, "Ran this from the dictionary!", 10, 0
+    not_found_msg              db 10, "Word does not exist in dictionary.", 10, 0
+    quit_msg                   db 10, "I'm the quit label!", 10, 0
+    goof_msg                   db 10, "In test and done goofed!", 10, 0
+    error_return_overflow_msg  db "Return stack overflow.", 10, 0
+    error_return_underflow_msg db "Return stack underflow.", 10, 0
+    error_data_underflow_msg   db "Data stack underflow.", 10, 0
+    error_data_overflow_msg    db "Data stack overflow.", 10, 0
+
+    boot_thread: dq test_label + CFA_OFFSET
+    ; cfa_docol: dq _docol
+    cfa_emit:  dq _emit
+    cfa_lit:   dq _lit
+    cfa_exit:  dq _exit
 
     static_dictionary:
-    test_label:
+    quit_label:
     dq 0
+    db 4
+    db "quit"
+    times 27 db 0
+    dq _quit
+    latest_label:
+    test_label:
+    dq quit_label
     db 4
     db "test"
     times 27 db 0
-    dq _test
+    test_body_start:
+    dq _docol
+    dq cfa_lit
+    dq 65
+    dq cfa_emit
+    dq cfa_exit
+    regular_entry 0, "next", _next
+    regular_entry _next, "docol", _docol
+    regular_entry _docol, "exit", _exit
+    regular_enrty _exit, "branch", _branch
+    regular_entry branch, "0branch", _0branch
+    masked_dict_entry _0branch, "lit", _lit, IMMEDIATE
 
 section .bss
-    main_rbp     resq 1
-    stdin        resq 1
-    current_word resb 32 ; ANS Forth standard 31-byte word with length prefix
-    current_char resb 1
-    latest       resq 1
+    main_rbp        resq 1
+    stdin           resq 1
+    lookup_buffer   resb 32 ; ANS Forth standard 31-byte word with length prefix
+    current_char    resb 1
+    data_stack      resb DATA_STACK_SIZE * POINTER_SIZE
+    return_stack    resb RETURN_STACK_SIZE * POINTER_SIZE
+
+    ; state
+    latest          resq 1
+    input_buffer    resb INPUT_BUFFER_SIZE
+    input_pos       resq 1
+    here            resq 1
+    state           resb 1
 
 section .text
     global main
@@ -31,42 +69,20 @@ section .text
     extern printf
 main:
     enter_call
+    lea DATA_TOS_REG, [rel data_stack]
+    lea RETURN_TOS_REG, [rel return_stack]
     mov [rel main_rbp], rbp
     sub rsp, 32
-    lea rax, [rel test_label]
+    lea rax, [rel latest_label]
     mov [rel latest], rax
     xor rax, rax
     mov rcx, 0
     call __acrt_iob_func
     mov [rel stdin], rax
-
+    lea IP_REG, [rel boot_thread]
+    jmp _next
     .quit:
-        call _word
-
-        ; find the word
-        call _find
-        test rax, rax
-        jnz .found
-        lea rcx, [rel not_found_msg]
-        call printf
-        jmp .quit
-        .found:
-        mov rax, [rax]
-        jmp rax
-        ; mov rcx, 10
-        ; call putch
-
-        ; inc r8
-        ; mov byte [r12], 0
-        ; lea rcx, [rel echo_fmt]
-        ; lea rdx, [rel current_word + 1]
-        ; call printf
-        ; jmp .quit
-
-    add rsp, 32
     .end:
-    leave_call
-    xor rax, rax
     ret
 
 skip_space:
@@ -89,18 +105,18 @@ skip_space:
     pop rbp
     ret
 
-_word:
+_fill:
     push rbp
     mov rbp, rsp
     sub rsp, 32
     call skip_space
-    lea r13, [rel current_word + 31]
-    lea rdi, [rel current_word]
+    lea r13, [rel lookup_buffer + 31]
+    lea rdi, [rel lookup_buffer]
     mov rcx, 4
     mov rax, 0
     rep stosq
 
-    lea r12, [rel current_word + 1]
+    lea r12, [rel lookup_buffer + 1]
     mov byte [r13], 0
     jmp .word_start
     .char_loop:
@@ -135,7 +151,7 @@ _word:
             jne .char_loop
         .handle_bsp:
             ; skip if at start of buffer
-            lea r10, [rel current_word + 1]
+            lea r10, [rel lookup_buffer + 1]
             cmp r12, r10
             jle .char_loop
             ; fix input
@@ -156,7 +172,7 @@ _word:
             ; move to next slot
             inc r12
             ; keep the length current
-            inc byte [rel current_word]
+            inc byte [rel lookup_buffer]
             cmp r13, r12
             je .ret
             jmp .char_loop
@@ -174,7 +190,7 @@ _find:
     push rbp
     mov rbp, rsp
     xor rax, rax
-    lea r8, [rel current_word]
+    lea r8, [rel lookup_buffer]
     ; store comparison limit
     mov rcx, r8
     add rcx, 24
@@ -212,14 +228,13 @@ _find:
         je .bail
         ; follow the previous pointer
         mov rdx, [rdx]
-        lea r8, [rel current_word]
+        lea r8, [rel lookup_buffer]
         ; start afresh in a new word
         jmp .initial_compare
     .success:
     mov rsp, rbp
     pop rbp
-    lea rax, [rdx + 40] ; where the XT lives
-    ; mov rax, [rax] ; the xt
+    lea rax, [rdx + CFA_OFFSET] ; where the XT lives
     ret
     ; if not found, print friendly message, for now
     .bail:
@@ -230,3 +245,8 @@ _find:
         mov rax, 0
         mov rbp, [rel main_rbp]
         jmp main.quit
+
+callable_error error_return_overflow, error_return_overflow_msg
+callable_error error_return_underflow, error_return_underflow_msg
+callable_error error_data_underflow, error_data_underflow_msg
+callable_error error_data_overflow, error_data_overflow_msg

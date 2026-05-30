@@ -22,4 +22,77 @@
     pop rbx
     pop rsi
     pop rdi
- %endmacro
+%endmacro
+
+; pre : limit is one unit past the writable region. tos points to the next location that will be written
+; post: cleared to write or error, rcx & rdx clobbered
+%macro overflow 6 ; num_items, width, size, tos, stack, error
+    lea rcx, [%4 + %1 * %2]
+    lea rdx, [rel %5 + %3 * %2]
+    cmp rcx, rdx
+    jb %%ok
+    sub rsp, 32
+    call %6
+    ; doesn't return, so no need to add 32 bytes back
+    %%ok:
+%endmacro
+
+%macro stack_pushq 2 ; reg, tos
+    mov [%2], %1
+    add %2, CELL_SIZE
+%endmacro
+
+%macro underflow 5 ; num_items, width, tos, stack, error_return_overflow
+    lea rcx, [rel %4 + %1 * %2]
+    mov rdx, %3
+    cmp rcx, rdx
+    jbe %%ok
+    sub rsp, 32
+    call %5
+    ; doesn't return, so no need to add 32 bytes back
+    %%ok:
+%endmacro
+
+%macro stack_popq 2; reg, tos
+    sub %2, CELL_SIZE
+    mov %1, [%2]
+%endmacro
+
+%macro callable_error 2
+    %1:
+        int3
+        throw %2
+%endmacro
+
+; post: IP points to quit
+%macro throw 1
+    sub rsp, 32
+    lea rcx, [rel %1]
+    call printf
+    add rsp, 32
+    lea DATA_TOS_REG, [rel data_stack]
+    lea RETURN_TOS_REG, [rel return_stack]
+    lea IP_REG, [rel quit_label + CFA_OFFSET + POINTER_SIZE]
+    mov rbp, [rel main_rbp]
+    jmp _next
+%endmacro
+
+%macro call_c 2
+    sub rsp, %2
+    call %1
+    add rsp, %2
+    jmp _next
+%endmacro
+
+%macro masked_dict_entry 4 ; prev, word, label, mask
+    label%3:
+    dq label%1
+    %strlen name_len %2
+    db (name_len | %4), %2
+    times (31 - name_len) db 0
+    dq %3
+%endmacro
+
+%macro regular_entry 3 ; prev word label
+    masked_dict_entry %1, %2, %3, 0
+%endmacro

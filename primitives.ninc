@@ -5,5 +5,433 @@ section .text
 
 _test:
     lea rcx, [rel test_str]
-    call printf
+    call_c printf, 32
+    throw goof_msg
     jmp main.quit
+
+; ******************** IP manipulation ************************* ;
+
+; pre : IP points at a cell with a valid CFA
+; post: The CFA pointed to by IP is in W, IP advances one cell, execution has jumped to [W]
+_next:
+    mov W_REG, [IP_REG]
+    add IP_REG, POINTER_SIZE
+    jmp [W_REG]
+
+; pre : W holds the CFA of a valid colon definition whose following token begins the word's body
+; post: IP has been pushed onto the return stack, IP points at start of colon definition body
+_docol:
+    overflow 1, CELL_SIZE, RETURN_STACK_SIZE, RETURN_TOS_REG, return_stack, error_return_overflow
+    stack_pushq IP_REG, RETURN_TOS_REG
+    lea IP_REG, [W_REG + POINTER_SIZE]
+    jmp _next
+
+_exit:
+    underflow 1, CELL_SIZE, RETURN_TOS_REG, return_stack, error_return_underflow
+    stack_popq IP_REG, RETURN_TOS_REG
+    int3
+    jmp _next
+
+_quit:
+    lea rcx, [rel quit_msg]
+    call_c printf, 32
+    int3
+
+_branch:
+    mov r8, [IP_REG]
+    add IP_REG, r8
+    jmp _next
+
+_0branch:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    stack_popq r8, DATA_TOS_REG
+    test r8, r8
+    jnz .no_jmp
+    mov r8, [IP_REG]
+    add IP_REG, r8
+    jmp _next
+    .no_jmp:
+    add IP_REG, POINTER_SIZE
+    jmp _next
+
+
+
+_lit:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    mov r8, [IP_REG]
+    stack_pushq r8, DATA_TOS_REG
+    add IP_REG, POINTER_SIZE
+    jmp _next
+
+; ************************** os boundary ************************ ;
+
+_key:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    xor rax, rax
+    call_c getch, 32
+    stack_pushq rax, DATA_TOS_REG
+    jmp _next
+
+_emit:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    stack_popq rcx, DATA_TOS_REG
+    call_c putch, 32
+    jmp _next
+
+
+; *************************** stack manipulation ******************** ;
+
+_dup:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    mov r8, [DATA_TOS_REG - CELL_SIZE]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_2dup:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    overflow 2, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    mov r9, [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG], r8
+    mov [DATA_TOS_REG + 2*CELL_SIZE], r9
+    add DATA_TOS_REG, 2*CELL_SIZE
+    jmp _next
+
+_drop:
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_swap:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    mov r9, [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], r9
+    mov [DATA_TOS_REG - CELL_SIZE], r8
+    jmp _next
+
+_over:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_rot:
+    underflow 3, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 3*CELL_SIZE]
+    mov r9, [DATA_TOS_REG - 2*CELL_SIZE]
+    mov [DATA_TOS_REG - 3*CELL_SIZE], r9
+    mov r9, [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], r9
+    mov [DATA_TOS_REG - CELL_SIZE], r8
+    jmp next
+
+_to_return:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    overflow 1, CELL_SIZE, RETURN_STACK_SIZE, RETURN_TOS_REG, return_stack, error_return_overflow
+    stack_popq r8, DATA_TOS_REG
+    stack_pushq r8, RETURN_TOS_REG
+    jmp _next
+
+_to_data:
+    underflow 1, CELL_SIZE, RETURN_TOS_REG, return_stack, error_return_underflow
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    stack_popq r8, RETURN_TOS_REG
+    stack_pushq r8, DATA_TOS_REG
+
+    jmp _next
+
+_get_sp:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    stack_pushq DATA_TOS_REG, DATA_TOS_REG
+    jmp _next
+
+_get_rp:
+    overflow 1, CELL_SIZE, RETURN_STACK_SIZE, RETURN_TOS_REG, return_stack, error_return_overflow
+    stack_pushq RETURN_TOS_REG, RETURN_TOS_REG
+    jmp _next
+
+; ********************* state variables ********************* ;
+_dp:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    lea r8, [rel here]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_state:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    lea r8, [rel state]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_latest:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    lea r8, [rel latest]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_input_pos:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    lea r8, [rel input_pos]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_input_buffer:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    lea r8, [rel input_buffer]
+     stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+; ********************* memory read/write ********************* ;
+_get:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - CELL_SIZE]
+    mov r8, [r8]
+    mov [DATA_TOS_REG - CELL_SIZE], r8
+    jmp _next
+
+_store:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - CELL_SIZE]    ; ADDR
+    mov r9, [DATA_TOS_REG - 2*CELL_SIZE]  ; VALUE
+    mov [r8], r9
+    sub DATA_TOS_REG, 2*CELL_SIZE
+    jmp _next
+
+_char_get:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - CELL_SIZE]
+    movzx r8d, byte [r8]
+    mov [DATA_TOS_REG - CELL_SIZE], r8
+jmp _next
+
+_char_store:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - CELL_SIZE]    ; ADDR
+    movzx r9d, byte [DATA_TOS_REG - 2*CELL_SIZE]  ; VALUE
+    mov byte [r8], r9b
+    sub DATA_TOS_REG, 2*CELL_SIZE
+    jmp _next
+
+; *********************** arithmetic ************************** ;
+
+_add:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    add r8, [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], r8
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_sub:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    sub r8, [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], r8
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_and:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    and r8, [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], r8
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_invert:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    not qword [DATA_TOS_REG - CELL_SIZE]
+    jmp _next
+
+_mul:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov rax, [DATA_TOS_REG - 2*CELL_SIZE]
+    imul qword [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], rax
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_xor:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - CELL_SIZE]
+    xor r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], r8
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_or:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - CELL_SIZE]
+    or r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], r8
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_div:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov rax, [DATA_TOS_REG - 2*CELL_SIZE]
+    cqo
+    idiv qword [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], rax
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_divmod:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov rax, [DATA_TOS_REG - 2*CELL_SIZE]
+    cqo
+    idiv qword [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], rdx
+    mov [DATA_TOS_REG - CELL_SIZE], rax
+    jmp _next
+
+_mod:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov rax, [DATA_TOS_REG - 2*CELL_SIZE]
+    cqo
+    idiv qword [DATA_TOS_REG - CELL_SIZE]
+    mov [DATA_TOS_REG - 2*CELL_SIZE], rdx
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_inc:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    inc qword [DATA_TOS_REG - CELL_SIZE]
+    jmp _next
+
+_dec:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    dec qword [DATA_TOS_REG - CELL_SIZE]
+    jmp _next
+
+_lshift:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    movzx ecx, byte [DATA_TOS_REG - 2*CELL_SIZE], cl
+    shl qword [DATA_TOS_REG - 2*CELL_SIZE]
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+_rshift:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    movzx ecx, byte [DATA_TOS_REG - 2*CELL_SIZE], cl
+    shr qword [DATA_TOS_REG - CELL_SIZE], cl
+    sub DATA_TOS_REG, CELL_SIZE
+    jmp _next
+
+; ************************ comparison ******************** ;
+
+_lt:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    sub DATA_TOS_REG, CELL_SIZE
+    cmp r8, [DATA_TOS_REG]
+    jl .true
+    mov qword [DATA_TOS_REG - CELL_SIZE], -0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
+    jmp _next
+
+_lte:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    sub DATA_TOS_REG, CELL_SIZE
+    cmp r8, [DATA_TOS_REG]
+    jle .true
+    mov qword [DATA_TOS_REG - CELL_SIZE], 0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
+    jmp _next
+
+_eq:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    sub DATA_TOS_REG, CELL_SIZE
+    cmp r8, [DATA_TOS_REG]
+    je .true
+    mov qword [DATA_TOS_REG - CELL_SIZE], 0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
+    jmp _next
+
+_gte:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    sub DATA_TOS_REG, CELL_SIZE
+    cmp r8, [DATA_TOS_REG]
+    jge .true
+    mov qword [DATA_TOS_REG - CELL_SIZE], 0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
+    jmp _next
+
+_gt:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    sub DATA_TOS_REG, CELL_SIZE
+    cmp r8, [DATA_TOS_REG]
+    jg .true
+    mov qword [DATA_TOS_REG - CELL_SIZE], 0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
+    jmp _next
+_0=:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    cmp qword [DATA_TOS_REG - CELL_SIZE], 0
+    je .true
+    mov qword [DATA_TOS_REG - CELL_SIZE], 0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
+    jmp _next
+
+_ult:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+
+    jmp _next
+
+; ********************* dictionary / compilation ****************** ;
+
+%macro pushvar 2
+%1:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    mov r8, [rel %2]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+%endmacro
+
+pushvar _here, here
+pushvar _state, state
+pushvar _latest, latest
+pushvar _base, base
+
+_create:
+    jmp _next
+
+_find_word:
+    sub rsp, 32
+    call _find
+    add rsp, 32
+    jmp _next
+
+_comma: ; write TOS to here, increment here
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    stack_popq r8, DATA_TOS_REG
+    mov [rel here], r8
+    add [rel here], CELL_SIZE
+    jmp _next
+
+
+; ************************* running ********************** ;
+
+_run:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    stack_popq r8, DATA_TOS_REG
+    jmp [r8]
+
