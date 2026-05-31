@@ -13,53 +13,172 @@ section .data
     error_return_underflow_msg db "Return stack underflow.", 10, 0
     error_data_underflow_msg   db "Data stack underflow.", 10, 0
     error_data_overflow_msg    db "Data stack overflow.", 10, 0
+    ; CFAs for manually coded compiled words:
+    cfa_interpret: dq interpret_body
+    cfa_quit:      dq quit_body
 
-    boot_thread: dq test_label + CFA_OFFSET
-    ; cfa_docol: dq _docol
-    cfa_emit:  dq _emit
-    cfa_lit:   dq _lit
-    cfa_exit:  dq _exit
+    ; CFAs for primitives:
+    cfa_emit:                   dq _emit
+    cfa_lit:                    dq _lit
+    cfa_exit:                   dq _exit
+    cfa_docol:                  dq _docol
+    cfa_refill:                 dq _refill
+    cfa_branch:                 dq _branch
+    cfa_rp0:                    dq _rp0
+    cfa_rp_store:               dq _rp_store
+    cfa_input_buffer:           dq _input_buffer
+    cfa_ib_fill:                dq _ib_fill
+    cfa_input_pos:              dq _input_pos
+    cfa_gt:                     dq _gt
+    cfa_0branch:                dq _0branch
+    cfa_word:                   dq _word
 
     static_dictionary:
-    quit_label:
+    label_quit:
     dq 0
     db 4
     db "quit"
     times 27 db 0
-    dq _quit
-    latest_label:
-    test_label:
-    dq quit_label
-    db 4
-    db "test"
-    times 27 db 0
-    test_body_start:
-    dq _docol
-    dq cfa_lit
-    dq 65
-    dq cfa_emit
+    dq cfa_docol
+    ; begin quit loop body
+    quit_body:
+    dq cfa_docol
+    dq cfa_rp0
+    dq cfa_rp_store
+    .begin:
+    ; BEGIN
+    dq cfa_refill
+    dq cfa_interpret
+    ; REPEAT
+    dq cfa_branch
+    dq quit_body.begin - $
+    ; end quit loop body
+    label_interpret:
+    dq label_quit
+    db 9
+    db "interpret"
+    times 22 db 0
+    interpret_body:
+    dq cfa_docol
+    .begin:
+    ; >in >= >#tib => branch exit
+    dq cfa_ib_fill
+    dq cfa_input_pos
+    dq cfa_gt
+    cfa_0branch
+    dq .exit - $
+    ; get a word
+    dq cfa_fill_word
+    ; if no word, branch to .begin
+    ; find
+    ; if found, branch to .dispatch
+    ; >number
+    ; if number, branch .number
+    ; if state == 0, branch .run_num_error
+    ; set state to 0
+    ; unwind here
+    .run_num_error:
+    ; reset and error
+    .number:
+    ; if state == 0, branch .push_lit
+    ; compiling, so:
+    ; write LIT to here
+    ; write value to here
+    ; branch .begin
+    .push_lit:
+    ; push value onto stack
+    ; branch .begin
+    .dispatch:
+    ; if state == 0, branch .run_it
+    ; if IMMEDIATE, branch .run_it
+    ; compiling, so
+    ; write xt and advance here
+    ; branch .begin
+    .run_it:
+    ; run
+    ; branch .begin
+    .exit:
     dq cfa_exit
-    regular_entry 0, "next", _next
+    regular_entry _quit, "next", _next
     regular_entry _next, "docol", _docol
     regular_entry _docol, "exit", _exit
     regular_enrty _exit, "branch", _branch
-    regular_entry branch, "0branch", _0branch
+    regular_entry _branch, "0branch", _0branch
     masked_dict_entry _0branch, "lit", _lit, IMMEDIATE
+    regular_entry _lit, "key", _key
+    regular_entry _key, "emit", _emit
+    regular_entry _emit, "dup", _dup
+    regular_entry _dup, "2dup", _2dup
+    regular_entry _2dup, "drop", _drop
+    regular_entry _drop, "swap", _swap
+    regular_entry _swap, "over", _over
+    regular_entry _over, "rot", _rot
+    regular_entry _rot, ">r", _to_return
+    regular_entry _to_return, "r>", _to_data
+    regular_entry _to_data, "sp@", _get_sp
+    regular_entry _get_sp, "rp@", _get_rp
+    regular_entry _get_rp, "here", _dp
+    regular_entry _dp, "state", _state
+    regular_entry _state, "latest", _latest
+    regular_entry _latest, ">in", _input_pos
+    regular_entry _input_pos, "source", _input_buffer
+    regular_entry _input_buffer, "@", _get
+    regular_entry _get, "!", _store
+    regular_entry _store, "c@", _char_get
+    regular_entry _char_get, "c!", _char_store
+    regular_entry _char_store, "+", _add
+    regular_entry _add, "-", _sub
+    regular_entry _sub, "and", _and
+    regular_entry _and, "invert", _invert
+    regular_entry _invert, "*", _mul
+    regular_entry _mul, "xor", _xor
+    regular_entry _xor, "or", _or
+    regular_entry _or, "/", _div
+    regular_entry _div, "/mod", _divmod
+    regular_entry _divmod, "mod", _mod
+    regular_entry _mod, "+!", _plus_store
+    regular_entry _plus_store, "-!", _sub_store
+    regular_entry _sub_store, "<<", _lshift
+    regular_entry _lshift, ">>", _rshift
+    regular_entry _rshift, "<", _lt
+    regular_entry _lt, "<=", _lte
+    regular_entry _lte, "=", _eq
+    regular_entry _eq, ">=", _gte
+    regular_entry _gte, ">", _gt
+    regular_entry _gt, "0=", _0=
+    regular_entry _0=, "u<", _ult
+    regular_entry _ult, "here", _here
+    regular_entry _here, "state", _state
+    regular_entry _state, "latest", _latest
+    regular_entry _latest, "base', _base
+    regular_entry _base, "create", _create
+    regular_entry _create, "find", _find_word
+    regular_entry _find_word, ",", _comma
+    regular_entry _comma, "run", _run
+    regular_entry _run, "rp0", _rp0
+    regular_entry _rp0, "sp0", _sp0
+    regular_entry _sp0, "rp!", _rp_store
+    regular_entry _rp_store, "sp!", _sp_store
+    regular_entry _sp_store, "#tib", _ib_fill
+    regular_entry _ib_fill, "word", _word
+    initial_latest:
+    regular_entry _ib_fill, "accept", _accept
 
 section .bss
-    main_rbp        resq 1
-    stdin           resq 1
-    lookup_buffer   resb 32 ; ANS Forth standard 31-byte word with length prefix
-    current_char    resb 1
-    data_stack      resb DATA_STACK_SIZE * POINTER_SIZE
-    return_stack    resb RETURN_STACK_SIZE * POINTER_SIZE
+    main_rbp              resq 1
+    stdin                 resq 1
+    lookup_buffer         resb 32 ; ANS Forth standard 31-byte word with length prefix
+    current_char          resb 1
+    data_stack            resb DATA_STACK_SIZE * POINTER_SIZE
+    return_stack          resb RETURN_STACK_SIZE * POINTER_SIZE
+    file_pointer_stack    resb FILE_POINTER_STACK_SIZE * POINTER_SIZE
 
     ; state
-    latest          resq 1
-    input_buffer    resb INPUT_BUFFER_SIZE
-    input_pos       resq 1
-    here            resq 1
-    state           resb 1
+    latest                resq 1
+    input_buffer          resb INPUT_BUFFER_SIZE
+    input_pos             resq 1
+    here                  resq 1
+    state                 resb 1
 
 section .text
     global main
@@ -79,10 +198,7 @@ main:
     mov rcx, 0
     call __acrt_iob_func
     mov [rel stdin], rax
-    lea IP_REG, [rel boot_thread]
-    jmp _next
-    .quit:
-    .end:
+    ; jump start quit loop
     ret
 
 skip_space:
@@ -181,7 +297,7 @@ _fill:
     mov rsp, rbp
     pop rbp
     ret
-    .bail:
+    .bail: ; TODO: FIX!!! implement handling that the quit loop will understand, or properly throw.
     mov rbp, [rel main_rbp]
     jmp main.end
 

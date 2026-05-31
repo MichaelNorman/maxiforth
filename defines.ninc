@@ -1,15 +1,16 @@
-%define IP_REG              r15
-%define W_REG               r14
-%define RETURN_TOS_REG      r13
-%define DATA_TOS_REG        r12
+%define IP_REG                   r15
+%define W_REG                    r14
+%define RETURN_TOS_REG           r13
+   %define DATA_TOS_REG          r12
 
-%define POINTER_SIZE          8
-%define CELL_SIZE             8
-%define CFA_OFFSET           40
-%define RETURN_STACK_SIZE    32
-%define DATA_STACK_SIZE      32
-%define INPUT_BUFFER_SIZE   512
+%define POINTER_SIZE               8
+%define CELL_SIZE                  8
+%define CFA_OFFSET                40
+%define RETURN_STACK_SIZE         32
+%define DATA_STACK_SIZE           32
+%define FILE_POINTER_STACK_SIZE   16
+%define INPUT_BUFFER_SIZE        512
 
-%define IMMEDIATE          0x20
-%define SMUDGE             0x40
-%define COMPILING          0x01
+%define IMMEDIATE               0x20
+%define SMUDGE                  0x40
+%define COMPILING               0x01

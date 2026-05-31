@@ -3,12 +3,6 @@
 %endif
 section .text
 
-_test:
-    lea rcx, [rel test_str]
-    call_c printf, 32
-    throw goof_msg
-    jmp main.quit
-
 ; ******************** IP manipulation ************************* ;
 
 ; pre : IP points at a cell with a valid CFA
@@ -31,11 +25,6 @@ _exit:
     stack_popq IP_REG, RETURN_TOS_REG
     int3
     jmp _next
-
-_quit:
-    lea rcx, [rel quit_msg]
-    call_c printf, 32
-    int3
 
 _branch:
     mov r8, [IP_REG]
@@ -178,10 +167,19 @@ _input_pos:
     jmp _next
 
 _input_buffer:
-    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    overflow 2, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
     lea r8, [rel input_buffer]
-     stack_pushq r8, DATA_TOS_REG
+    stack_pushq r8, DATA_TOS_REG
+    mov r8, INPUT_BUFFER_SIZE
+    stack_pushq r8, DATA_TOS_REG
     jmp _next
+
+_ib_fill:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    mov r8, [rel bytes_read]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
 
 ; ********************* memory read/write ********************* ;
 _get:
@@ -212,6 +210,30 @@ _char_store:
     movzx r9d, byte [DATA_TOS_REG - 2*CELL_SIZE]  ; VALUE
     mov byte [r8], r9b
     sub DATA_TOS_REG, 2*CELL_SIZE
+    jmp _next
+
+; ******************** guts ************************;
+
+_rp0:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    lea r8, [rel return_stack]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_sp0:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    lea r8, [rel data_stack]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_rp_store:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    stack_popq, RETURN_TOS_REG, DATA_TOS_REG
+    jmp _next
+
+_sp_store:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    stack_popq, DATA_TOS_REG, DATA_TOS_REG
     jmp _next
 
 ; *********************** arithmetic ************************** ;
@@ -296,12 +318,13 @@ _mod:
     sub DATA_TOS_REG, CELL_SIZE
     jmp _next
 
-_inc:
-    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
-    inc qword [DATA_TOS_REG - CELL_SIZE]
+_plus_store:
+    underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    mov r8, [DATA_TOS_REG - CELL_SIZE]
+    mov r9, [DATA_TOS_REG - 2*CELL_SIZE]
     jmp _next
 
-_dec:
+_sub_store:
     underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
     dec qword [DATA_TOS_REG - CELL_SIZE]
     jmp _next
@@ -393,7 +416,14 @@ _0=:
 
 _ult:
     underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
-
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
+    sub DATA_TOS_REG, CELL_SIZE
+    cmp r8, [DATA_TOS_REG]
+    jb .true
+    mov qword [DATA_TOS_REG - CELL_SIZE], 0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
     jmp _next
 
 ; ********************* dictionary / compilation ****************** ;
@@ -428,7 +458,15 @@ _comma: ; write TOS to here, increment here
     jmp _next
 
 
-; ************************* running ********************** ;
+; ************************* outer loop ********************** ;
+
+_accept:
+    jmp _next
+
+_word:
+    overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    call fill_word
+    jmp _next
 
 _run:
     underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
