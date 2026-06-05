@@ -18,6 +18,7 @@ section .data
     error_low_digit_msg          db "Low digit for any base.", 10, 0
     error_bad_hex_digit_msg      db "Invalid hex digit.", 10, 0
     error_high_hex_digit_msg     db "Invalid hex digit: too high.", 10, 0
+    error_high_dec_digit_msg     db "Invalid decimal digit: too high", 10, 0
     ; CFAs for manually coded compiled words:
     cfa_interpret: dq interpret_body
     cfa_quit:      dq quit_body
@@ -417,30 +418,29 @@ _find:
         jmp main.quit
 
 to_number:
-    ; presume a number literal is contained in word_buffer
-    ; check for sign, and store a sign flag if present
-    ; if sign was present, increment the start address and decrement the counter.
-    ; if the counter is now 0, bail with an error.
+    ; presume a number literal is contained in word_buffer.
+    ; it is a length-prefixed 31-byte max value (32 bytes total).
+    mov qword [rel working_number], 0 ; initialize positive accumulator
     lea r8, [rel word_buffer]
-    inc r8
-    lea rcx, [rel working_number]
-    movzx r9d, byte [rcx]
-    and r9b, WORD_LEN_MASK
+    movzx r9d, byte [r8] ; load length byte
+    inc r8 ; move to start of string
     xor rax, rax
-    mov al, [rdx + 1]
+    mov al, [r8] ; get possible sign bit
     ; handle sign, if present
-    mov byte [rel negative], 0
     cmp al, '-'
     jne .check_plus
     mov byte [rel negative], 1
-    inc r8
-    dec byte [rel word_buffer]
+    inc r8 ; move past sign
+    dec r9b ; one "digit" was the sign
     jmp .sign_done
+    .check_plus:
     cmp al, '+'
     jne .sign_done
     mov byte [rel negative], 0
-    dec byte [rel word_buffer]
-    inc r8
+    inc r8 ; move past sign
+    dec r9b ; one 'digit" was the sign
+    ; r9b contains the (possibly adjusted) nummber of bytes to check.
+    ; r8 contains the (possibly adjusted) address of the first actual digit
     .sign_done:
         mov r10, [rel base]
         cmp r10, 16
@@ -451,16 +451,19 @@ to_number:
         je .oct
         call error_bad_base
     .hex:
+        xor r10, r10
         sub rsp, 32
         call hex_convert
-        add rsp, 3
+        add rsp, 32
         jmp .handle_sign
     .dec:
+        xor r10, r10
         sub rsp, 32
         call dec_convert
         add rsp, 32
         jmp .handle_sign
     .oct:
+        xor r10, r10
         sub rsp, 32
         call oct_convert
         add rsp, 32
@@ -470,48 +473,116 @@ to_number:
         jne .sign_handled
         neg qword [rel working_number]
     .sign_handled:
-        mov r8, [rel working_number]
     ret
 
-; r8 has the starting byte of the positive portion of the number
+; r8 has the address of the starting byte of the positive portion of the number
 ;    the number ends with `0` if it is shorter than 31 chars with sign or
 ;    has its last digit at most 31 bytes above &word_buffer
-; [rel word_buffer] contains the number of digits to process
+; r9b contains the number of digits to process
+; word_buffer + 1 or +2 is the start of the number, coresponding to [r8]
+; working_number is initialized to 0
+; r10 is all balls
+
 hex_convert:
-    movzx r9d, byte [rel word_buffer] ; number of digits to process
-    mov qword [rel working_number], 0
+    mov r11, [rel working_number]
     .loop:
-    mov r11b, [r8]
-    ; the next line leaves ASCII digits untouched, but pushes characters to lowercase.
-    or r11b, 0x20
-    cmp r11b, 0x30
-    ja .nine_check
-    call error_low_digit
-    .nine_check
-    cmp r11b, 0x39
-    ja .hex_check
-    sub r11b, 0x30
-    jmp .acc
-    .hex_check:
-    cmp r11b, 0x61
-    ja .fifteen_check
-    call error_bad_hex_digit
-    .fifteen_check:
-    cmp r11b, 0x66
-    jbe .got_hex
-    call error_high_hex_digit
-    .got_hex:
-    sub r11b, 0x57
-    ; jmp .acc fall through
-    .acc:
-    imul qword [rel working_number], 16
-    add qword [rel working_number], r11
-    cmp dl, 0
-    je .ret
-    dec dl
-    inc r8
+        mov r10b, [r8] ; the digit character to transform into a value
+        ; compare to `0`
+        cmp r10b, 0x30
+        jae .nine_check
+        call error_low_digit
+        .nine_check:
+        ; compare to `9`
+        cmp r10b, '9'
+        ja .hex_check ;out of 0-9 range, so let's hope it's a-f
+        sub r10b, '0' ; subtract off ASCII `0` (0x30) to get a value
+        jmp .acc
+        .hex_check:
+            ; the next line leaves ASCII digits untouched, but pushes characters to lowercase.
+            ; a | 0x61 | 0110 0001
+            ; f | 0x66 | 0110 0110
+            ; A | 0x41 | 0100 0001
+            ; F | 0x46 | 0100 0110
+            ;   | 0x20 | 0010 0000
+            ; In the chart above, ORing the final row with the capital row produces the lowrcase row.
+            or r10b, 0x20
+
+            cmp r10b, 'a'
+            jae .fifteen_check
+            call error_low_hex_digit
+
+        .fifteen_check:
+            cmp r10b, 'f'
+            jbe .got_hex
+            call error_high_hex_digit
+
+        .got_hex:
+        sub r10b, 0x57 ; magic number to leave 10-15 in r10b
+        ; jmp .acc fall through
+        .acc:
+        imul r11, r11, 16 ; I know, I know. Not using base saves a load and reduces register pressure
+        add r11, r10
+        dec r9b
+        cmp r9b, 0
+        je .ret
+        inc r8
     jmp .loop
     .ret:
+    mov [rel working_number], r11
+    ret
+
+dec_convert:
+    mov r11, [rel working_number]
+    .loop:
+        mov r10b, [r8] ; the digit character to transform into a value
+        ; compare to `0`
+        cmp r10b, 0x30
+        jae .nine_check
+        call error_low_digit
+        .nine_check:
+            ; compare to `9`
+            cmp r10b, '9'
+            jbe .valid_digit
+            ;out of 0-9 range
+            call error_high_dec_digit
+        .valid_digit:
+        sub r10b, '0' ; subtract off ASCII `0` (0x30) to get a value
+        imul r11, r11, 10 ; I know, I know. Not using base saves a load and reduces register pressure
+        add r11, r10
+        dec r9b
+        cmp r9b, 0
+        je .ret
+        inc r8
+    jmp .loop
+    .ret:
+    mov [rel working_number], r11
+    ret
+
+oct_convert:
+    mov r11, [rel working_number]
+    .loop:
+        mov r10b, [r8] ; the digit character to transform into a value
+        ; compare to `0`
+        cmp r10b, 0x30
+        jae .seven_check
+        call error_low_digit
+        .seven_check:
+            ; compare to `7`
+            cmp r10b, '7'
+            jbe .valid_digit
+            ;out of 0-9 range
+            call error_high_oct_digit
+        .valid_digit:
+        sub r10b, '0' ; subtract off ASCII `0` (0x30) to get a value
+        imul r11, r11, 8 ; I know, I know. Not using base saves a load and reduces register pressure
+        add r11, r10
+        dec r9b
+        cmp r9b, 0
+        je .ret
+        inc r8
+    jmp .loop
+    .ret:
+    mov [rel working_number], r11
     ret
 
 callable_error error_return_overflow, error_return_overflow_msg
@@ -523,3 +594,4 @@ callable_error error_bad_base, error_bad_base_msg
 callable_error error_low_digit, error_low_digit_msg
 callable_error error_bad_hex_digit, error_bad_hex_digit_msg
 callable_error error_high_hex_digit, error_high_hex_digit_msg
+callable_error error_high_dec_digit, error_high_dec_digit_msg
