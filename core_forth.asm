@@ -4,15 +4,20 @@
 section .rodata
 
 section .data
-    echo_fmt                   db "I found: %s", 10, 0
-    test_str                   db 10, "Ran this from the dictionary!", 10, 0
-    not_found_msg              db 10, "Word does not exist in dictionary.", 10, 0
-    quit_msg                   db 10, "I'm the quit label!", 10, 0
-    goof_msg                   db 10, "In test and done goofed!", 10, 0
-    error_return_overflow_msg  db "Return stack overflow.", 10, 0
-    error_return_underflow_msg db "Return stack underflow.", 10, 0
-    error_data_underflow_msg   db "Data stack underflow.", 10, 0
-    error_data_overflow_msg    db "Data stack overflow.", 10, 0
+    echo_fmt                     db "I found: %s", 10, 0
+    test_str                     db 10, "Ran this from the dictionary!", 10, 0
+    not_found_msg                db 10, "Word does not exist in dictionary.", 10, 0
+    quit_msg                     db 10, "I'm the quit label!", 10, 0
+    goof_msg                     db 10, "In test and done goofed!", 10, 0
+    error_return_overflow_msg    db "Return stack overflow.", 10, 0
+    error_return_underflow_msg   db "Return stack underflow.", 10, 0
+    error_data_underflow_msg     db "Data stack underflow.", 10, 0
+    error_data_overflow_msg      db "Data stack overflow.", 10, 0
+    error_bad_numeric_lieral_msg db "No word found, and invalid literal for any base.", 10, 0
+    error_bad_base_msg           db "Bad base. This error should not occur.", 10, 0
+    error_low_digit_msg          db "Low digit for any base.", 10, 0
+    error_bad_hex_digit_msg      db "Invalid hex digit.", 10, 0
+    error_high_hex_digit_msg     db "Invalid hex digit: too high.", 10, 0
     ; CFAs for manually coded compiled words:
     cfa_interpret: dq interpret_body
     cfa_quit:      dq quit_body
@@ -32,6 +37,18 @@ section .data
     cfa_gt:                     dq _gt
     cfa_0branch:                dq _0branch
     cfa_word:                   dq _word
+    cfa_dup:                    dq _dup
+    cfa_char_get:               dq _char_get
+    cfa_0branch:                dq _0branch
+    cfa_find:                   dq _find
+    cfa_rt_lit:                 dq _rt_lit
+    cfa_0eq:                    dq _0eq
+    cfa_swap:                   dq _swap
+    cfa_lt0:                    dq _lt0
+    cfa_gt0:                    dq _gt0
+    cfa_state:                  dq _state
+    cfa_drop:                   dq _drop
+    cfa_here:                   dq _here
 
     static_dictionary:
     label_quit:
@@ -65,15 +82,56 @@ section .data
     dq cfa_ib_fill
     dq cfa_input_pos
     dq cfa_gt
-    cfa_0branch
+    dq cfa_0branch
     dq .exit - $
     ; get a word
     dq cfa_fill_word
-    ; if no word, branch to .begin
+    ; if no word, branch to .exit
+    dq cfa_dup
+    dq cfa_char_get
+    dq cfa_0branch
+    dq .exit - $
     ; find
-    ; if found, branch to .dispatch
-    ; >number
-    ; if number, branch .number
+    dq cfa_find
+    dq cfa_state
+    dq cfa_0eq
+    dq cfa_0branch
+    dq .compile - $
+    ; in "running" state
+    dq cfa_dup
+    dq cfa_0branch
+    dq .run_number - $
+    ; whether regular or immediate, run the word:
+    dq cfa_branch
+    dq .run_it - $
+    .compile:
+        ; TOS is still the flag. STATE is definitely 1. TOS is -1, 0, or 1
+        dq cfa_dup
+        dq cfa_0branch
+        dq .compile_number
+        ; if not found, branch to .number
+        dq cfa_dup
+        dq cfa_0branch
+        dq .number - $
+        ; consume the flag dq cfa_dup ; flag
+        dq cfa_lt0
+        ; jump ot run_it on immediate
+        dq cfa_0branch
+        dq .run_it - $
+        ; compile in anger:
+        dq cfa_comma
+        .compile_number:
+
+    ; if IMMEDIATE, branch .run_it
+
+    ; compiling, so
+    ; write xt and advance here
+    ; branch .begin
+    .run_it:
+    ; run
+    ; branch .begin; >number
+
+
     ; if state == 0, branch .run_num_error
     ; set state to 0
     ; unwind here
@@ -88,15 +146,7 @@ section .data
     .push_lit:
     ; push value onto stack
     ; branch .begin
-    .dispatch:
-    ; if state == 0, branch .run_it
-    ; if IMMEDIATE, branch .run_it
-    ; compiling, so
-    ; write xt and advance here
-    ; branch .begin
-    .run_it:
-    ; run
-    ; branch .begin
+
     .exit:
     dq cfa_exit
     regular_entry _quit, "next", _next
@@ -104,8 +154,8 @@ section .data
     regular_entry _docol, "exit", _exit
     regular_enrty _exit, "branch", _branch
     regular_entry _branch, "0branch", _0branch
-    masked_dict_entry _0branch, "lit", _lit, IMMEDIATE
-    regular_entry _lit, "key", _key
+    regular_entry _0branch, "lit", _rt_lit
+    regular_entry _rt_lit, "key", _key
     regular_entry _key, "emit", _emit
     regular_entry _emit, "dup", _dup
     regular_entry _dup, "2dup", _2dup
@@ -161,13 +211,15 @@ section .data
     regular_entry _rp_store, "sp!", _sp_store
     regular_entry _sp_store, "#tib", _ib_fill
     regular_entry _ib_fill, "word", _word
+    regular_entry _word, "lt0", _lt0
+    regular_entry _lt0, "gt0", _gt0
     initial_latest:
-    regular_entry _ib_fill, "accept", _accept
+    regular_entry _gt0, "accept", _accept
 
 section .bss
     main_rbp              resq 1
     stdin                 resq 1
-    lookup_buffer         resb 32 ; ANS Forth standard 31-byte word with length prefix
+    word_buffer         resb 32 ; ANS Forth standard 31-byte word with length prefix
     current_char          resb 1
     data_stack            resb DATA_STACK_SIZE * POINTER_SIZE
     return_stack          resb RETURN_STACK_SIZE * POINTER_SIZE
@@ -179,6 +231,7 @@ section .bss
     input_pos             resq 1
     here                  resq 1
     state                 resb 1
+    working_number        resq 1
 
 section .text
     global main
@@ -226,13 +279,13 @@ _fill:
     mov rbp, rsp
     sub rsp, 32
     call skip_space
-    lea r13, [rel lookup_buffer + 31]
-    lea rdi, [rel lookup_buffer]
+    lea r13, [rel word_buffer + 31]
+    lea rdi, [rel word_buffer]
     mov rcx, 4
     mov rax, 0
     rep stosq
 
-    lea r12, [rel lookup_buffer + 1]
+    lea r12, [rel word_buffer + 1]
     mov byte [r13], 0
     jmp .word_start
     .char_loop:
@@ -267,7 +320,7 @@ _fill:
             jne .char_loop
         .handle_bsp:
             ; skip if at start of buffer
-            lea r10, [rel lookup_buffer + 1]
+            lea r10, [rel word_buffer + 1]
             cmp r12, r10
             jle .char_loop
             ; fix input
@@ -288,7 +341,7 @@ _fill:
             ; move to next slot
             inc r12
             ; keep the length current
-            inc byte [rel lookup_buffer]
+            inc byte [rel word_buffer]
             cmp r13, r12
             je .ret
             jmp .char_loop
@@ -306,7 +359,7 @@ _find:
     push rbp
     mov rbp, rsp
     xor rax, rax
-    lea r8, [rel lookup_buffer]
+    lea r8, [rel word_buffer]
     ; store comparison limit
     mov rcx, r8
     add rcx, 24
@@ -344,7 +397,7 @@ _find:
         je .bail
         ; follow the previous pointer
         mov rdx, [rdx]
-        lea r8, [rel lookup_buffer]
+        lea r8, [rel word_buffer]
         ; start afresh in a new word
         jmp .initial_compare
     .success:
@@ -362,7 +415,77 @@ _find:
         mov rbp, [rel main_rbp]
         jmp main.quit
 
+to_number:
+    ; presume a number literal is contained in word_buffer
+    ; check for sign, and store a sign flag if present
+    ; if sign was present, increment the start address and decrement the counter.
+    ; if the counter is now 0, bail with an error.
+    ;
+    lea r8, [rel word_buffer]
+    lea rcx, [rel working_number]
+    xor r9, r9
+    mov r9b, [r8]
+    mov r10, [rel base]
+    cmp r10, 16
+    je .hex
+    dmp r10, 10
+    je .dec
+    cmp r10, 8
+    je .oct
+    call error_bad_base
+    .hex:
+        sub rsp, 32
+        call hex_convert
+        add rsp, 32
+        jmp .handle_sign
+    .dec:
+        sub rsp, 32
+        call dec_convert
+        add rsp, 32
+        jmp .handle_sign
+    .oct:
+        sub rsp, 32
+        call oct_convert
+        add rsp, 32
+        jmp .handle_sign
+    .handle_sign:
+
+
+    mov r8, [rel working_number]
+    ret
+
+hex_convert:
+    .loop:
+    ; the next line leaves ASCII digits untouched, but pushes characters to lowercase.
+    or r9b, 0x20
+    cmp r9b, 0x30
+    ja .nine_check
+    call error_low_digit
+    .nine_check
+    cmp r9b, 0x39
+    ja .hex_check
+    sub r9b, 0x30
+    jmp .acc
+    .hex_check:
+    cmp r9b, 0x61
+    ja .fifteen_check
+    call error_bad_hex_digit
+    .fifteen_check:
+    cmp r9b, 0x66
+    jbe .got_hex
+    call error_high_hex_digit
+    .got_hex:
+    sub r9b, 0x57
+    jmp .acc
+    .acc
+    ret
+
 callable_error error_return_overflow, error_return_overflow_msg
 callable_error error_return_underflow, error_return_underflow_msg
 callable_error error_data_underflow, error_data_underflow_msg
 callable_error error_data_overflow, error_data_overflow_msg
+callable_error error_bad_numeric_lieral, error_bad_numeric_lieral_msg
+callable_error error_bad_base, error_bad_base_msg
+callable_error error_low_digit, error_low_digit_msg
+callable_error error_bad_hex_digit, error_bad_hex_digit_msg
+callable_error error_high_hex_digit, error_high_hex_digit_msg

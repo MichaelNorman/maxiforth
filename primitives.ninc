@@ -43,9 +43,14 @@ _0branch:
     add IP_REG, POINTER_SIZE
     jmp _next
 
-
-
 _lit:
+
+    cmp qword [rel state], 0
+    jne .compile
+    .compile
+    jmp _next
+
+_rt_lit:
     overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
     mov r8, [IP_REG]
     stack_pushq r8, DATA_TOS_REG
@@ -202,7 +207,7 @@ _char_get:
     mov r8, [DATA_TOS_REG - CELL_SIZE]
     movzx r8d, byte [r8]
     mov [DATA_TOS_REG - CELL_SIZE], r8
-jmp _next
+    jmp _next
 
 _char_store:
     underflow 2, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
@@ -404,10 +409,30 @@ _gt:
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
     jmp _next
-_0=:
+_0eq:
     underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
     cmp qword [DATA_TOS_REG - CELL_SIZE], 0
     je .true
+    mov qword [DATA_TOS_REG - CELL_SIZE], 0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
+    jmp _next
+
+_lt0;
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stac, error_data_underflow
+    cmp qword [DATA_TOS_REG - CELL_SIZE], 0
+    jl .true
+    mov qword [DATA_TOS_REG - CELL_SIZE], 0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
+    jmp _next
+
+_gt0:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stac, error_data_underflow
+    cmp qword [DATA_TOS_REG - CELL_SIZE], 0
+    jg .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
     jmp _next
     .true:

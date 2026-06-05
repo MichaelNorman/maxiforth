@@ -60,7 +60,7 @@
 
 %macro callable_error 2
     %1:
-        int3
+        ;int3
         throw %2
 %endmacro
 
