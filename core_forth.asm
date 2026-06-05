@@ -232,6 +232,7 @@ section .bss
     here                  resq 1
     state                 resb 1
     working_number        resq 1
+    negative              resb 1
 
 section .text
     global main
@@ -420,23 +421,39 @@ to_number:
     ; check for sign, and store a sign flag if present
     ; if sign was present, increment the start address and decrement the counter.
     ; if the counter is now 0, bail with an error.
-    ;
     lea r8, [rel word_buffer]
+    inc r8
     lea rcx, [rel working_number]
-    xor r9, r9
-    mov r9b, [r8]
-    mov r10, [rel base]
-    cmp r10, 16
-    je .hex
-    dmp r10, 10
-    je .dec
-    cmp r10, 8
-    je .oct
-    call error_bad_base
+    movzx r9d, byte [rcx]
+    and r9b, WORD_LEN_MASK
+    xor rax, rax
+    mov al, [rdx + 1]
+    ; handle sign, if present
+    mov byte [rel negative], 0
+    cmp al, '-'
+    jne .check_plus
+    mov byte [rel negative], 1
+    inc r8
+    dec byte [rel word_buffer]
+    jmp .sign_done
+    cmp al, '+'
+    jne .sign_done
+    mov byte [rel negative], 0
+    dec byte [rel word_buffer]
+    inc r8
+    .sign_done:
+        mov r10, [rel base]
+        cmp r10, 16
+        je .hex
+        cmp r10, 10
+        je .dec
+        cmp r10, 8
+        je .oct
+        call error_bad_base
     .hex:
         sub rsp, 32
         call hex_convert
-        add rsp, 32
+        add rsp, 3
         jmp .handle_sign
     .dec:
         sub rsp, 32
@@ -449,35 +466,52 @@ to_number:
         add rsp, 32
         jmp .handle_sign
     .handle_sign:
-
-
-    mov r8, [rel working_number]
+        cmp byte [rel negative], 1
+        jne .sign_handled
+        neg qword [rel working_number]
+    .sign_handled:
+        mov r8, [rel working_number]
     ret
 
+; r8 has the starting byte of the positive portion of the number
+;    the number ends with `0` if it is shorter than 31 chars with sign or
+;    has its last digit at most 31 bytes above &word_buffer
+; [rel word_buffer] contains the number of digits to process
 hex_convert:
+    movzx r9d, byte [rel word_buffer] ; number of digits to process
+    mov qword [rel working_number], 0
     .loop:
+    mov r11b, [r8]
     ; the next line leaves ASCII digits untouched, but pushes characters to lowercase.
-    or r9b, 0x20
-    cmp r9b, 0x30
+    or r11b, 0x20
+    cmp r11b, 0x30
     ja .nine_check
     call error_low_digit
     .nine_check
-    cmp r9b, 0x39
+    cmp r11b, 0x39
     ja .hex_check
-    sub r9b, 0x30
+    sub r11b, 0x30
     jmp .acc
     .hex_check:
-    cmp r9b, 0x61
+    cmp r11b, 0x61
     ja .fifteen_check
     call error_bad_hex_digit
     .fifteen_check:
-    cmp r9b, 0x66
+    cmp r11b, 0x66
     jbe .got_hex
     call error_high_hex_digit
     .got_hex:
-    sub r9b, 0x57
-    jmp .acc
-    .acc
+    sub r11b, 0x57
+    ; jmp .acc fall through
+    .acc:
+    imul qword [rel working_number], 16
+    add qword [rel working_number], r11
+    cmp dl, 0
+    je .ret
+    dec dl
+    inc r8
+    jmp .loop
+    .ret:
     ret
 
 callable_error error_return_overflow, error_return_overflow_msg

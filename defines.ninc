@@ -1,7 +1,7 @@
 %define IP_REG                   r15
 %define W_REG                    r14
 %define RETURN_TOS_REG           r13
-   %define DATA_TOS_REG          r12
+%define DATA_TOS_REG             r12
 
 %define POINTER_SIZE               8
 %define CELL_SIZE                  8
@@ -14,3 +14,5 @@
 %define IMMEDIATE               0x20
 %define SMUDGE                  0x40
 %define COMPILING               0x01
+
+%define WORD_LEN_MASK           0x1f
