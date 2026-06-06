@@ -62,7 +62,7 @@ _rt_lit:
 _key:
     overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
     xor rax, rax
-    call_c getch, 32
+    call_c _getch, 32
     stack_pushq rax, DATA_TOS_REG
     jmp _next
 
@@ -419,8 +419,8 @@ _0eq:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
     jmp _next
 
-_lt0;
-    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stac, error_data_underflow
+_0lt:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
     cmp qword [DATA_TOS_REG - CELL_SIZE], 0
     jl .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
@@ -429,8 +429,8 @@ _lt0;
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
     jmp _next
 
-_gt0:
-    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stac, error_data_underflow
+_0gt:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
     cmp qword [DATA_TOS_REG - CELL_SIZE], 0
     jg .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
@@ -482,6 +482,14 @@ _comma: ; write TOS to here, increment here
     add [rel here], CELL_SIZE
     jmp _next
 
+_to_number:
+    underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    stack_popq r8, DATA_TOS_REG
+    call to_number ; throws on error
+    mov r8, [rel working_number]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
 
 ; ************************* outer loop ********************** ;
 
@@ -490,7 +498,7 @@ _accept:
 
 _word:
     overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
-    call fill_word
+    call fill
     jmp _next
 
 _run:
@@ -498,3 +506,95 @@ _run:
     stack_popq r8, DATA_TOS_REG
     jmp [r8]
 
+_refill:
+    sub rsp, 32
+    overflow 2, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
+    ; clear the input buffer
+    lea rdi, [rel input_buffer]
+    mov rcx, INPUT_BUFFER_SIZE
+    mov rax, 0
+    rep stosb
+
+    ; set >in to 0
+    mov qword [rel input_pos], 0
+    lea rdi, [rel input_buffer] ; rdi is the input_buffer base addreass for the duration of _refill
+    xor rbx, rbx ; rbx is the buffer index for the duration of _refill
+
+    .loop:
+        cmp rbx, INPUT_BUFFER_SIZE - 1
+        je .at_last_slot
+        jg .hard_overrun ; guard against future edits
+        cmp rbx, 0
+        jl .hard_underrun ; guard against future edits
+        ; somewhere in input buffer
+        xor rax, rax
+        call _getch
+        mov r9, rax
+        cmp r9b, 13
+        jne .not_end
+        mov [rdi + rbx], r9b ; store the value
+        jmp .final
+        .not_end:
+            cmp r9b, 8 ; backspace
+            je .handle_backspace
+            cmp r9b, 127 ; treat delete as backspace
+            je .handle_backspace
+            cmp r9b, 0 ; control code for things we ignore
+            je .consume_and_loop
+            cmp r9b, 0xE0 ; control code that preceds DEL, which we respect as backspace
+            je .check_del
+            jmp .no_backspace
+
+        .hard_underrun:
+            call error_ib_underrun_hard
+        .hard_overrun:
+            call error_ib_overrun_hard
+        .at_last_slot:
+            call _getch
+            mov r9, rax
+            cmp r9b, 13
+            jne .overflow
+            mov [rdi + rbx], 13
+            jmp .final
+        .overflow:
+            call error_input_buffer_overrun
+        .consume_and_loop:
+            call _getch
+            jmp .loop
+        .check_del:
+            call _getch
+            cmp al, 0x53
+            je .handle_backspace
+            jmp .consume_and_loop
+        .handle_backspace:
+            ; skip if at start of input buffer
+            cmp rbx, 0
+            je .loop
+            ; patch up the terminal: bsp + ' ' + bsp to erase the character and put the cursor back.
+            xor rcx, rcx
+            mov ecx, 8
+            call putch
+            mov ecx, 32
+            call putch
+            mov ecx, 8
+            call putch
+            ; patch up input_buffer and index
+            dec rbx
+            mov byte [rdi + rbx], 0
+            jmp .loop
+        .no_backspace:
+            ; transfer to buffer
+            mov byte [rdi + rbx], r9b
+            ;show user
+            mov rcx, r9
+            call putch
+            ; increment
+            inc rbx
+            jmp .loop
+    .final:
+    add rsp, 32
+    inc rbx
+    mov [rel tib], rdi
+    stack_pushq rdi, DATA_TOS_REG
+    stack_pushq rbx, DATA_TOS_REG
+    jmp _next

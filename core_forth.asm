@@ -4,21 +4,25 @@
 section .rodata
 
 section .data
-    echo_fmt                     db "I found: %s", 10, 0
-    test_str                     db 10, "Ran this from the dictionary!", 10, 0
-    not_found_msg                db 10, "Word does not exist in dictionary.", 10, 0
-    quit_msg                     db 10, "I'm the quit label!", 10, 0
-    goof_msg                     db 10, "In test and done goofed!", 10, 0
-    error_return_overflow_msg    db "Return stack overflow.", 10, 0
-    error_return_underflow_msg   db "Return stack underflow.", 10, 0
-    error_data_underflow_msg     db "Data stack underflow.", 10, 0
-    error_data_overflow_msg      db "Data stack overflow.", 10, 0
-    error_bad_numeric_lieral_msg db "No word found, and invalid literal for any base.", 10, 0
-    error_bad_base_msg           db "Bad base. This error should not occur.", 10, 0
-    error_low_digit_msg          db "Low digit for any base.", 10, 0
-    error_bad_hex_digit_msg      db "Invalid hex digit.", 10, 0
-    error_high_hex_digit_msg     db "Invalid hex digit: too high.", 10, 0
-    error_high_dec_digit_msg     db "Invalid decimal digit: too high", 10, 0
+    echo_fmt                       db "I found: %s", 10, 0
+    test_str                       db 10, "Ran this from the dictionary!", 10, 0
+    not_found_msg                  db 10, "Word does not exist in dictionary.", 10, 0
+    quit_msg                       db 10, "I'm the quit label!", 10, 0
+    goof_msg                       db 10, "In test and done goofed!", 10, 0
+    error_return_overflow_msg      db "Return stack overflow.", 10, 0
+    error_return_underflow_msg     db "Return stack underflow.", 10, 0
+    error_data_underflow_msg       db "Data stack underflow.", 10, 0
+    error_data_overflow_msg        db "Data stack overflow.", 10, 0
+    error_bad_numeric_lieral_msg   db "No word found, and invalid literal for any base.", 10, 0
+    error_bad_base_msg             db "Bad base. This error should not occur.", 10, 0
+    error_low_digit_msg            db "Low digit for any base.", 10, 0
+    error_bad_hex_digit_msg        db "Invalid hex digit.", 10, 0
+    error_high_hex_digit_msg       db "Invalid hex digit: too high.", 10, 0
+    error_high_dec_digit_msg       db "Invalid decimal digit: too high", 10, 0
+    error_input_buffer_overrun_msg db "Last character of input buffer was not white space.", 10, 0
+    error_ib_overrun_hard_msg      db "Hard overrun of input buffer. Interpreter corrupted. Exit and restart.", 10, 0
+    error_ib_underrun_hard_msg     db "Hard underrun of input buffer. Interpreter corrupted. Exit and restart.", 10, 0
+
     ; CFAs for manually coded compiled words:
     cfa_interpret: dq interpret_body
     cfa_quit:      dq quit_body
@@ -58,7 +62,7 @@ section .data
     db "quit"
     times 27 db 0
     dq cfa_docol
-    ; begin quit loop body
+    ; BEGIN QUIT LOOP BODY
     quit_body:
     dq cfa_docol
     dq cfa_rp0
@@ -70,16 +74,17 @@ section .data
     ; REPEAT
     dq cfa_branch
     dq quit_body.begin - $
-    ; end quit loop body
+    ; END QUIT LOOP BODY
     label_interpret:
     dq label_quit
     db 9
     db "interpret"
     times 22 db 0
+    ; BEGIN INTERPRET BODY
     interpret_body:
     dq cfa_docol
     .begin:
-    ; >in >= >#tib => branch exit
+    ; >in >= >#tib -> branch exit
     dq cfa_ib_fill
     dq cfa_input_pos
     dq cfa_gt
@@ -88,8 +93,8 @@ section .data
     ; get a word
     dq cfa_fill_word
     ; if no word, branch to .exit
-    dq cfa_dup
-    dq cfa_char_get
+    dq cfa_dup ; address of word_buffer
+    dq cfa_char_get ; length byte of word
     dq cfa_0branch
     dq .exit - $
     ; find
@@ -212,15 +217,16 @@ section .data
     regular_entry _rp_store, "sp!", _sp_store
     regular_entry _sp_store, "#tib", _ib_fill
     regular_entry _ib_fill, "word", _word
-    regular_entry _word, "lt0", _lt0
-    regular_entry _lt0, "gt0", _gt0
+    regular_entry _word, "0<", _0lt
+    regular_entry _0lt, "0>", _0gt
+    regular_enrty _0gt, ">number", _to_number
     initial_latest:
-    regular_entry _gt0, "accept", _accept
+    regular_entry _to_number, "accept", _accept
 
 section .bss
     main_rbp              resq 1
     stdin                 resq 1
-    word_buffer         resb 32 ; ANS Forth standard 31-byte word with length prefix
+    word_buffer           resb 32 ; ANS Forth standard 31-byte word with length prefix
     current_char          resb 1
     data_stack            resb DATA_STACK_SIZE * POINTER_SIZE
     return_stack          resb RETURN_STACK_SIZE * POINTER_SIZE
@@ -230,6 +236,7 @@ section .bss
     latest                resq 1
     input_buffer          resb INPUT_BUFFER_SIZE
     input_pos             resq 1
+    tib                   resq 1
     here                  resq 1
     state                 resb 1
     working_number        resq 1
@@ -238,8 +245,8 @@ section .bss
 section .text
     global main
     extern __acrt_iob_func
-    extern getch
-    extern putch
+    extern _getch
+    extern _putch
     extern printf
 main:
     enter_call
@@ -256,105 +263,32 @@ main:
     ; jump start quit loop
     ret
 
+; skip_space and fill are currently stupid. They were from an unbuffered input model that just filled the word,
+; or from some transitional state.
+
+; skip_space operates on input_buffer and input_pos, and consideres INPUT_BUFFER_SIZE
+; The gist is, while input_pos < input_buffer + IBS and character is space-like, advance input_pos
 skip_space:
     push rbp
     mov rbp, rsp
     sub rsp, 32
     .skip_loop:
-        call getch
-        mov r14, rax
+        call _getch
+        mov r10, rax
         cmp r14b, ' '
         je .skip_loop
-        cmp r14b, 13
+        cmp r10b, 13
         je .skip_loop
-        cmp r14b, 10
+        cmp r10b, 10
         je .skip_loop
-        cmp r14b, 9
+        cmp r10b, 9
         je .skip_loop
     add rsp, 32
     mov rsp, rbp
     pop rbp
     ret
 
-_fill:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 32
-    call skip_space
-    lea r13, [rel word_buffer + 31]
-    lea rdi, [rel word_buffer]
-    mov rcx, 4
-    mov rax, 0
-    rep stosq
 
-    lea r12, [rel word_buffer + 1]
-    mov byte [r13], 0
-    jmp .word_start
-    .char_loop:
-        call getch
-        mov r14, rax
-        .word_start:
-            ;check for baill\ing
-            cmp r14b, 0x03
-            je .bail
-            ; check for word boundaries
-            cmp r14b, ' '
-            je .ret
-            cmp r14b, 13
-            je .ret
-            ; check for line editing
-            cmp r14b, 8
-            je .handle_bsp
-            cmp r14b, 127
-            je .handle_bsp
-            ; check for control codes
-            cmp r14b, 0
-            je .consume_and_loop
-            cmp r14b, 0xE0
-            je .check_del
-            jmp .no_bsp
-        .consume_and_loop:
-            call getch
-            jmp .char_loop
-        .check_del:
-            call getch
-            cmp al, 0x53
-            jne .char_loop
-        .handle_bsp:
-            ; skip if at start of buffer
-            lea r10, [rel word_buffer + 1]
-            cmp r12, r10
-            jle .char_loop
-            ; fix input
-            mov ecx, 8
-            call putch
-            mov ecx, 32
-            call putch
-            mov ecx, 8
-            call putch
-            dec r12
-            jmp .char_loop
-        .no_bsp:
-            ; echo to user
-            mov rcx, r14
-            call putch
-            ; mov al into the current location
-            mov byte [r12], r14b
-            ; move to next slot
-            inc r12
-            ; keep the length current
-            inc byte [rel word_buffer]
-            cmp r13, r12
-            je .ret
-            jmp .char_loop
-    .ret:
-    add rsp, 32
-    mov rsp, rbp
-    pop rbp
-    ret
-    .bail: ; TODO: FIX!!! implement handling that the quit loop will understand, or properly throw.
-    mov rbp, [rel main_rbp]
-    jmp main.end
 
 _find:
     ; start at latest
@@ -418,10 +352,11 @@ _find:
         jmp main.quit
 
 to_number:
-    ; presume a number literal is contained in word_buffer.
+    push rbp
+    mov rbp, rsp
+    ; presume the address to a 32-byte array is in r8
     ; it is a length-prefixed 31-byte max value (32 bytes total).
     mov qword [rel working_number], 0 ; initialize positive accumulator
-    lea r8, [rel word_buffer]
     movzx r9d, byte [r8] ; load length byte
     inc r8 ; move to start of string
     xor rax, rax
@@ -473,6 +408,8 @@ to_number:
         jne .sign_handled
         neg qword [rel working_number]
     .sign_handled:
+    mov rsp, rbp
+    pop rbp
     ret
 
 ; r8 has the address of the starting byte of the positive portion of the number
@@ -487,12 +424,10 @@ hex_convert:
     mov r11, [rel working_number]
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
-        ; compare to `0`
-        cmp r10b, 0x30
+        cmp r10b, '0''
         jae .nine_check
         call error_low_digit
         .nine_check:
-        ; compare to `9`
         cmp r10b, '9'
         ja .hex_check ;out of 0-9 range, so let's hope it's a-f
         sub r10b, '0' ; subtract off ASCII `0` (0x30) to get a value
@@ -535,12 +470,10 @@ dec_convert:
     mov r11, [rel working_number]
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
-        ; compare to `0`
-        cmp r10b, 0x30
+        cmp r10b, '0''
         jae .nine_check
         call error_low_digit
         .nine_check:
-            ; compare to `9`
             cmp r10b, '9'
             jbe .valid_digit
             ;out of 0-9 range
@@ -562,12 +495,10 @@ oct_convert:
     mov r11, [rel working_number]
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
-        ; compare to `0`
-        cmp r10b, 0x30
+        cmp r10b, '0''
         jae .seven_check
         call error_low_digit
         .seven_check:
-            ; compare to `7`
             cmp r10b, '7'
             jbe .valid_digit
             ;out of 0-9 range
@@ -595,3 +526,6 @@ callable_error error_low_digit, error_low_digit_msg
 callable_error error_bad_hex_digit, error_bad_hex_digit_msg
 callable_error error_high_hex_digit, error_high_hex_digit_msg
 callable_error error_high_dec_digit, error_high_dec_digit_msg
+callable_error error_input_buffer_overrun, error_input_buffer_overrun_msg
+callable_error error_ib_overrun_hard, error_ib_overrun_hard_msg
+callable_error error_ib_underrun_hard, error_ib_underrun_hard_msg
