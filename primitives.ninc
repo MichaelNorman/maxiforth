@@ -496,12 +496,45 @@ _to_number:
 _accept:
     jmp _next
 
+; skip_space operates on input_buffer and input_pos, and consideres INPUT_BUFFER_SIZE
+; The gist is, while input_pos < input_buffer + IBS and character is space-like, advance input_pos
+skip_space:
+    push rbp
+    mov rbp, rsp
+    lea r8, [rel input_buffer]
+    mov r9, [rel input_pos]
+    add r8, r9
+    xor r10, r10
+    .skip_loop:
+        mov r10b, [r8]
+        cmp r10b, 10
+        je .inc_and_loop
+        cmp r10b, 13
+        je .inc_and_loop
+        cmp r10b, 9
+        je .inc_and_loop
+        lea r9, [rel input_buffer]
+        sub r8, r9
+        mov [rel input_pos], r8
+        mov rsp, rbp
+        pop rbp
+        ret
+        .inc_and_loop:
+            inc r8
+            jmp .skip_loop
+
+
 ; input_buffer must terminate with `\n\0`
 _word:
     overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
     ; TODO: implement
     ; zero out word_buffer
+    lea rdi, [rel word_buffer]
+    mov rcx, 4
+    mov rax, 0
+    rep stosq
     ; skip leading spaces
+    call skip_space
     ; load character
     ; if character is 0, increment input_pos and jmp _next
     ; get initial write position

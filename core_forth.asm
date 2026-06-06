@@ -276,27 +276,6 @@ main:
 ; skip_space and fill are currently stupid. They were from an unbuffered input model that just filled the word,
 ; or from some transitional state.
 
-; skip_space operates on input_buffer and input_pos, and consideres INPUT_BUFFER_SIZE
-; The gist is, while input_pos < input_buffer + IBS and character is space-like, advance input_pos
-skip_space:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 32
-    .skip_loop:
-        call _getch
-        mov r10, rax
-        cmp r14b, ' '
-        je .skip_loop
-        cmp r10b, 13
-        je .skip_loop
-        cmp r10b, 10
-        je .skip_loop
-        cmp r10b, 9
-        je .skip_loop
-    add rsp, 32
-    mov rsp, rbp
-    pop rbp
-    ret
 
 
 
