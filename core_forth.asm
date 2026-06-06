@@ -37,7 +37,7 @@ section .data
     cfa_rp0:                    dq _rp0
     cfa_rp_store:               dq _rp_store
     cfa_input_buffer:           dq _input_buffer
-    cfa_ib_fill:                dq _ib_fill
+    cfa_tib:                    dq _tib
     cfa_input_pos:              dq _input_pos
     cfa_gt:                     dq _gt
     cfa_0branch:                dq _0branch
@@ -82,79 +82,79 @@ section .data
     times 22 db 0
     ; BEGIN INTERPRET BODY
     interpret_body:
-    dq cfa_docol
-    .begin:
-    ; >in >= >#tib -> branch exit
-    dq cfa_ib_fill
-    dq cfa_input_pos
-    dq cfa_gt
-    dq cfa_0branch
-    dq .exit - $
-    ; get a word
-    dq cfa_fill_word
-    ; if no word, branch to .exit
-    dq cfa_dup ; address of word_buffer
-    dq cfa_char_get ; length byte of word
-    dq cfa_0branch
-    dq .exit - $
-    ; find
-    dq cfa_find
-    dq cfa_state
-    dq cfa_0eq
-    dq cfa_0branch
-    dq .compile - $
-    ; in "running" state
-    dq cfa_dup
-    dq cfa_0branch
-    dq .run_number - $
-    ; whether regular or immediate, run the word:
-    dq cfa_branch
-    dq .run_it - $
-    .compile:
-        ; TOS is still the flag. STATE is definitely 1. TOS is -1, 0, or 1
-        dq cfa_dup
-        dq cfa_0branch
-        dq .compile_number
-        ; if not found, branch to .number
-        dq cfa_dup
-        dq cfa_0branch
-        dq .number - $
-        ; consume the flag dq cfa_dup ; flag
-        dq cfa_lt0
-        ; jump ot run_it on immediate
-        dq cfa_0branch
-        dq .run_it - $
-        ; compile in anger:
-        dq cfa_comma
-        .compile_number:
+        dq cfa_docol
+        .begin:
+            ; >in >= >#tib -> branch exit
+            dq cfa_input_pos
+            dq cfa_dup
+            dq cfa_rt_lit
+            dq INPUT_BUFFER_SIZE
+            dq cfa_gte
+            dq cfa_0branch
+            dq .exit - $
+            ; get a word
+            dq cfa_fill_word
+            ; if no word, branch to .exit
+            dq cfa_dup ; address of word_buffer
+            dq cfa_char_get ; length byte of word
+            dq cfa_0branch
+            dq .exit - $
+            ; find
+            dq cfa_find
+            dq cfa_state
+            dq cfa_0eq
+            dq cfa_0branch
+            dq .compile - $
+            ; in "running" state
+            dq cfa_dup
+            dq cfa_0branch
+            dq .run_number - $
+            ; whether regular or immediate, run the word:
+            dq cfa_branch
+            dq .run_it - $
+        .compile:
+            ; TOS is still the flag. STATE is definitely 1. TOS is -1, 0, or 1
+            dq cfa_dup
+            dq cfa_0branch
+            dq .compile_number
+            ; if not found, branch to .number
+            dq cfa_dup
+            dq cfa_0branch
+            dq .number - $
+            ; consume the flag dq cfa_dup ; flag
+            dq cfa_lt0
+            ; jump ot run_it on immediate
+            dq cfa_0branch
+            dq .run_it - $
+            ; compile in anger:
+            dq cfa_comma
+            .compile_number:
 
-    ; if IMMEDIATE, branch .run_it
+        ; if IMMEDIATE, branch .run_it
 
-    ; compiling, so
-    ; write xt and advance here
-    ; branch .begin
-    .run_it:
-    ; run
-    ; branch .begin; >number
+        ; compiling, so
+        ; write xt and advance here
+        ; branch .begin
+        .run_it:
+        ; run
+        ; branch .begin; >number
+        ; if state == 0, branch .run_num_error
+        ; set state to 0
+        ; unwind here
+        .run_num_error:
+        ; reset and error
+        .number:
+        ; if state == 0, branch .push_lit
+        ; compiling, so:
+        ; write LIT to here
+        ; write value to here
+        ; branch .begin
+        .push_lit:
+        ; push value onto stack
+        ; branch .begin
 
-
-    ; if state == 0, branch .run_num_error
-    ; set state to 0
-    ; unwind here
-    .run_num_error:
-    ; reset and error
-    .number:
-    ; if state == 0, branch .push_lit
-    ; compiling, so:
-    ; write LIT to here
-    ; write value to here
-    ; branch .begin
-    .push_lit:
-    ; push value onto stack
-    ; branch .begin
-
-    .exit:
-    dq cfa_exit
+        .exit:
+            dq cfa_exit
     regular_entry _quit, "next", _next
     regular_entry _next, "refill", _refill
     regular_entry _refill, "docol", _docol
@@ -216,8 +216,8 @@ section .data
     regular_entry _rp0, "sp0", _sp0
     regular_entry _sp0, "rp!", _rp_store
     regular_entry _rp_store, "sp!", _sp_store
-    regular_entry _sp_store, "#tib", _ib_fill
-    regular_entry _ib_fill, "word", _word
+    regular_entry _sp_store, "#tib", _tib
+    regular_entry _tib, "word", _word
     regular_entry _word, "0<", _0lt
     regular_entry _0lt, "0>", _0gt
     regular_enrty _0gt, ">number", _to_number
@@ -236,9 +236,8 @@ section .bss
 
     ; state
     latest                resq 1
-    input_buffer          resb INPUT_BUFFER_SIZE
-    input_pos             resq 1
-    tib                   resq 1 ; just an alias. look into removing/combining
+    input_buffer          resb INPUT_BUFFER_SIZE ; tib, actually
+    input_pos             resq 1 ; index into input_buffer
     here                  resq 1
     state                 resb 1
     working_number        resq 1

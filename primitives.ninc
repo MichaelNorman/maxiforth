@@ -167,7 +167,7 @@ _latest:
 
 _input_pos:
     overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
-    lea r8, [rel input_pos]
+    mov r8, [rel input_pos]
     stack_pushq r8, DATA_TOS_REG
     jmp _next
 
@@ -179,9 +179,9 @@ _input_buffer:
     stack_pushq r8, DATA_TOS_REG
     jmp _next
 
-_ib_fill:
+_tib:
     overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
-    mov r8, [rel bytes_read]
+    lea r8, [rel input_buffer]
     stack_pushq r8, DATA_TOS_REG
     jmp _next
 
@@ -496,9 +496,23 @@ _to_number:
 _accept:
     jmp _next
 
+; input_buffer must terminate with `\n\0`
 _word:
     overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
-    call fill
+    ; TODO: implement
+    ; zero out word_buffer
+    ; skip leading spaces
+    ; load character
+    ; if character is 0, increment input_pos and jmp _next
+    ; get initial write position
+    ; loop:
+    ;   if character is white space (including '\n`)
+    ;   jmp _next
+    ;   if write position <= 31:
+    ;       write to write position
+    ;       inc write position
+    ;   inc read position
+    ;   jmp loop
     jmp _next
 
 _run:
@@ -506,8 +520,12 @@ _run:
     stack_popq r8, DATA_TOS_REG
     jmp [r8]
 
-; refill input buffer from source
 _refill:
+    call refill_internal
+    jmp _next
+
+; refill input buffer from source
+refill_internal:
     sub rsp, 32
     overflow 2, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
     ; clear the input buffer
@@ -635,7 +653,7 @@ _refill:
     .final:
     add rsp, 32
     inc rbx
-    mov [rel tib], rdi
+    mov [rel input_buffer], rdi
     stack_pushq rdi, DATA_TOS_REG
     stack_pushq rbx, DATA_TOS_REG
-    jmp _next
+    ret
