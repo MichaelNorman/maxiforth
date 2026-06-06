@@ -156,7 +156,8 @@ section .data
     .exit:
     dq cfa_exit
     regular_entry _quit, "next", _next
-    regular_entry _next, "docol", _docol
+    regular_entry _next, "refill", _refill
+    regular_entry _refill, "docol", _docol
     regular_entry _docol, "exit", _exit
     regular_enrty _exit, "branch", _branch
     regular_entry _branch, "0branch", _0branch
@@ -231,12 +232,13 @@ section .bss
     data_stack            resb DATA_STACK_SIZE * POINTER_SIZE
     return_stack          resb RETURN_STACK_SIZE * POINTER_SIZE
     file_pointer_stack    resb FILE_POINTER_STACK_SIZE * POINTER_SIZE
+    fp_tos                resq 1
 
     ; state
     latest                resq 1
     input_buffer          resb INPUT_BUFFER_SIZE
     input_pos             resq 1
-    tib                   resq 1
+    tib                   resq 1 ; just an alias. look into removing/combining
     here                  resq 1
     state                 resb 1
     working_number        resq 1
@@ -247,11 +249,20 @@ section .text
     extern __acrt_iob_func
     extern _getch
     extern _putch
+    extern fopen
+    extern fclose
+    extern ferr
+    extern feof
+    extern fread
+    extern fgets
+    extern strlen
     extern printf
 main:
     enter_call
     lea DATA_TOS_REG, [rel data_stack]
     lea RETURN_TOS_REG, [rel return_stack]
+    lea r8, [rel file_pointer_stack]
+    mov [rel fp_tos], r8
     mov [rel main_rbp], rbp
     sub rsp, 32
     lea rax, [rel latest_label]

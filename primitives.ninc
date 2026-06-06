@@ -506,6 +506,7 @@ _run:
     stack_popq r8, DATA_TOS_REG
     jmp [r8]
 
+; refill input buffer from source
 _refill:
     sub rsp, 32
     overflow 2, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
@@ -519,8 +520,12 @@ _refill:
     mov qword [rel input_pos], 0
     lea rdi, [rel input_buffer] ; rdi is the input_buffer base addreass for the duration of _refill
     xor rbx, rbx ; rbx is the buffer index for the duration of _refill
-
-    .loop:
+    ; decide from where to get our input
+    mov r8, [rel fp_tos]
+    lea r9, [rel file_pointer_stack]
+    cmp r8, r9
+    jne .read_file_line
+    .stdin_loop:
         cmp rbx, INPUT_BUFFER_SIZE - 1
         je .at_last_slot
         jg .hard_overrun ; guard against future edits
@@ -560,7 +565,7 @@ _refill:
             call error_input_buffer_overrun
         .consume_and_loop:
             call _getch
-            jmp .loop
+            jmp .stdin_loop
         .check_del:
             call _getch
             cmp al, 0x53
@@ -569,7 +574,7 @@ _refill:
         .handle_backspace:
             ; skip if at start of input buffer
             cmp rbx, 0
-            je .loop
+            je .stdin_loop
             ; patch up the terminal: bsp + ' ' + bsp to erase the character and put the cursor back.
             xor rcx, rcx
             mov ecx, 8
@@ -581,7 +586,7 @@ _refill:
             ; patch up input_buffer and index
             dec rbx
             mov byte [rdi + rbx], 0
-            jmp .loop
+            jmp .stdin_loop
         .no_backspace:
             ; transfer to buffer
             mov byte [rdi + rbx], r9b
@@ -590,7 +595,43 @@ _refill:
             call putch
             ; increment
             inc rbx
-            jmp .loop
+            jmp .stdin_loop
+
+    .read_file_line:
+        ; r8 contains [fp_tos]
+        ; r9 contains &file_pointer_stack
+        ; assumption is that the handle in fp_tos is open in text mode
+        xor rax, rax
+        lea rcx, [rel input_buffer]
+        mov rdx, INPUT_BUFFER_SIZE - 1
+        ; r8 already contains pointer to fp_tos
+        sub r8, POINTER_SIZE
+        call fgets
+        mov rcx, rax
+        call strlen
+        cmp rax, INPUT_BUFFER_SIZE - 1
+        jlt .fgets_ok
+        ; must have 511-byte string.
+        mov r9b, [rel input_buffer + INPUT_BUFFER_SIZE - 2]
+        cmp r9b, 10
+        je .fgets_ok
+        cmp r9b, 13 ; Okay. We'll be robust for files opened in binary mode.
+        je .fgets_ok
+        call error_input_buffer_overrun
+        .fgets_ok:
+        mov rcx, [rel fp_tos]
+        mov rcx, [rcx- POINTER_SIZE]
+        call feof
+        cmp rax, 0
+        je .final
+        ; manually pop and erase
+        sub qword [rel fp_tos], POINTER_SIZE
+        mov r8, [rel fp_tos]
+        mov rcx, [r8]
+        call fclose
+        mov r8, [rel fp_tos]
+        mov qword [r8], 0
+        ; fall through to .final because we got a line and handled cleanup
     .final:
     add rsp, 32
     inc rbx
