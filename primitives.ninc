@@ -493,11 +493,10 @@ _to_number:
 
 ; ************************* outer loop ********************** ;
 
-_accept:
+_accept: ;TODO: implement
     jmp _next
 
-; skip_space operates on input_buffer and input_pos, and consideres INPUT_BUFFER_SIZE
-; The gist is, while input_pos < input_buffer + IBS and character is space-like, advance input_pos
+; skip_space operates on input_buffer and input_pos, and relies on input_buffer being terminated with `\n\0`
 skip_space:
     push rbp
     mov rbp, rsp
@@ -507,6 +506,8 @@ skip_space:
     xor r10, r10
     .skip_loop:
         mov r10b, [r8]
+        cmp r10b, 32
+        je .inc_and_loop
         cmp r10b, 10
         je .inc_and_loop
         cmp r10b, 13
@@ -527,26 +528,62 @@ skip_space:
 ; input_buffer must terminate with `\n\0`
 _word:
     overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
-    ; TODO: implement
+
     ; zero out word_buffer
     lea rdi, [rel word_buffer]
     mov rcx, 4
     mov rax, 0
     rep stosq
+
     ; skip leading spaces
     call skip_space
-    ; load character
-    ; if character is 0, increment input_pos and jmp _next
+
+    ; initialize read position
+    lea r8, [rel input_buffer]
+    mov r9, [rel input_pos]
+    add r8, r9
+
     ; get initial write position
-    ; loop:
-    ;   if character is white space (including '\n`)
-    ;   jmp _next
-    ;   if write position <= 31:
-    ;       write to write position
-    ;       inc write position
-    ;   inc read position
-    ;   jmp loop
-    jmp _next
+    lea r10, [rel word_buffer]
+    inc r10
+    .word_loop:
+        ; load character
+        movzx r9d, byte [r8]
+        ;   if character is white space (including '\n`)
+        ;    update and jmp _next
+        cmp r9b, 10
+        je .exit
+        cmp r9b, 13
+        je .exit
+        cmp r9b, 9
+        je .exit
+        cmp r9b, 32
+        je .exit
+        ; if not at buffer end, write character and increment positions and counts
+        movzx r11d, byte [rel word_buffer]
+        cmp r11b, 31
+        ; I've already written 31 characters, which is the limit
+        jae .no_write
+        ; write and increment
+        mov [r10], r9b
+        inc r10 ; actual write position
+        ; update count for word string
+        inc byte [rel word_buffer] ; actual count
+        ; move the read position forward
+        inc r8 ; actual read position
+        jmp .word_loop
+
+        .no_write:
+            inc r8 ; increment read position
+            jmp .word_loop
+    .exit:
+        ; update input_pos, the index into the buffer where the next character will be read.
+        lea r9, [rel input_buffer]
+        sub r8, r9
+        mov [rel input_pos], r8
+        lea r9, [rel word_buffer]
+        stack_pushq r9, DATA_TOS_REG
+        jmp _next
 
 _run:
     underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
