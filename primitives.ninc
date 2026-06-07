@@ -470,9 +470,12 @@ _create:
     jmp _next
 
 _find_word:
+    overflow 2, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
     sub rsp, 32
     call _find
     add rsp, 32
+    stack_pushq rax, DATA_TOS_REG
+    stack_pushq rdx, DATA_TOS_REG
     jmp _next
 
 _comma: ; write TOS to here, increment here

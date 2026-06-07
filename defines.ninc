@@ -6,6 +6,7 @@
 %define POINTER_SIZE               8
 %define CELL_SIZE                  8
 %define CFA_OFFSET                40
+%define WORD_OFFSET     POINTER_SIZE
 %define RETURN_STACK_SIZE         32
 %define DATA_STACK_SIZE           32
 %define FILE_POINTER_STACK_SIZE   16

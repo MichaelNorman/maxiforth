@@ -86,19 +86,20 @@ section .data
         .begin:
             ; >in >= >#tib -> branch exit
             dq cfa_input_pos
-            dq cfa_dup
             dq cfa_rt_lit
             dq INPUT_BUFFER_SIZE
-            dq cfa_gte
+            dq cfa_lt
             dq cfa_0branch
             dq .exit - $
             ; get a word
-            dq cfa_fill_word
-            ; if no word, branch to .exit
+            dq cfa_word
+
+            ; exit on 0-length word
             dq cfa_dup ; address of word_buffer
             dq cfa_char_get ; length byte of word
             dq cfa_0branch
             dq .exit - $
+
             ; find
             dq cfa_find
             dq cfa_state
@@ -319,26 +320,31 @@ _find:
         .previous:
         ; eventually, this will load return normally
         cmp qword [rdx], 0
-        je .bail
+        je .not_found
         ; follow the previous pointer
         mov rdx, [rdx]
         lea r8, [rel word_buffer]
         ; start afresh in a new word
         jmp .initial_compare
     .success:
-    mov rsp, rbp
-    pop rbp
-    lea rax, [rdx + CFA_OFFSET] ; where the XT lives
-    ret
-    ; if not found, print friendly message, for now
-    .bail:
-        lea rcx, [rel not_found_msg]
-        sub rsp, 32
-        call printf
-        add rsp, 32
-        mov rax, 0
-        mov rbp, [rel main_rbp]
-        jmp main.quit
+        lea rax, [rdx + CFA_OFFSET] ; where the XT lives
+
+        ; fill rdx with 1 or -1 depending on the flag
+        movzx r8d, byte [rdx + WORD_OFFSET]
+        test r8b, IMMEDIATE_MASK
+        jnz .immediate
+        mov rdx, -1
+        jmp .ret
+        .immediate:
+            mov rdx, 1
+            jmp .ret
+    .not_found:
+        lea rax, [rel word_buffer]
+        mov rdx, 0
+    .ret:
+        mov rsp, rbp
+        pop rbp
+        ret
 
 to_number:
     push rbp
