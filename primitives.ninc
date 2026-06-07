@@ -485,12 +485,15 @@ _comma: ; write TOS to here, increment here
     add [rel here], CELL_SIZE
     jmp _next
 
+; (addr -- <value> <success>)
 _to_number:
     underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    overflow 1,  CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
     stack_popq r8, DATA_TOS_REG
     call to_number ; throws on error
     mov r8, [rel working_number]
     stack_pushq r8, DATA_TOS_REG
+    stack_pushq rax, DATA_TOS_REG
     jmp _next
 
 

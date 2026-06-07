@@ -15,10 +15,6 @@ section .data
     error_data_overflow_msg        db "Data stack overflow.", 10, 0
     error_bad_numeric_lieral_msg   db "No word found, and invalid literal for any base.", 10, 0
     error_bad_base_msg             db "Bad base. This error should not occur.", 10, 0
-    error_low_digit_msg            db "Low digit for any base.", 10, 0
-    error_bad_hex_digit_msg        db "Invalid hex digit.", 10, 0
-    error_high_hex_digit_msg       db "Invalid hex digit: too high.", 10, 0
-    error_high_dec_digit_msg       db "Invalid decimal digit: too high", 10, 0
     error_input_buffer_overrun_msg db "Last character of input buffer was not white space.", 10, 0
     error_ib_overrun_hard_msg      db "Hard overrun of input buffer. Interpreter corrupted. Exit and restart.", 10, 0
     error_ib_underrun_hard_msg     db "Hard underrun of input buffer. Interpreter corrupted. Exit and restart.", 10, 0
@@ -54,6 +50,7 @@ section .data
     cfa_state:                  dq _state
     cfa_drop:                   dq _drop
     cfa_here:                   dq _here
+    cfa_to_number:              dq _to_number
 
     static_dictionary:
     label_quit:
@@ -101,50 +98,55 @@ section .data
             dq .exit - $
 
             ; find
-            dq cfa_find
-            dq cfa_state
-            dq cfa_0eq
-            dq cfa_0branch
-            dq .compile - $
+            dq cfa_find         ; ( -- addr|XT -1|0|1)
+            dq cfa_state        ; ( addr|XT -1|0|1-- addr|XT -1|0|1 0|-1 )
+            dq cfa_0eq          ; ( addr|XT -1|0|1 0|-1--  addr|XT -1|0|1 -1|0)
+            dq cfa_0branch      ; ( addr|XT -1|0|1 -1|0 -- addr|XT -1|0|1 <continue>) |
+                                                          ; addr|XT -1|0|1 <jmp compile>)
+            dq .compile - $     ; --
             ; in "running" state
-            dq cfa_dup
-            dq cfa_0branch
-            dq .run_number - $
+            dq cfa_dup          ; (addr|XT -1|0|1 -- addr|XT -1|0|1  -1|0|1)
+            dq cfa_0branch      ; (addr|XT -1|0|1  -1|0|1 -- XT -1|1 <continue> |
+                                                           ; addr 0 <jmp run_number)
+            dq .run_number - $  ; .run_number label must start with dq cfa_drop
             ; whether regular or immediate, run the word:
-            dq cfa_branch
+            dq cfa_drop         ; (XT -1|1 -- XT)
+            dq cfa_branch       ; (XT -- <jmp run_it)
             dq .run_it - $
         .compile:
             ; TOS is still the flag. STATE is definitely 1. TOS is -1, 0, or 1
-            dq cfa_dup
-            dq cfa_0branch
-            dq .compile_number
-            ; if not found, branch to .number
-            dq cfa_dup
-            dq cfa_0branch
-            dq .number - $
-            ; consume the flag dq cfa_dup ; flag
-            dq cfa_lt0
+            dq cfa_dup          ; ( addr|XT -1|0|1 -- addr|XT -1|0|1 -1|0|1)
+            dq cfa_0branch      ; (addr|XT -1|0|1 -1|0|1 -- addr 0 <jmp compile_number> | XT -1|1 <continue>)
+            dq .compile_number - $
+            dq cfa_0lt          ;  ( XT -1|1 -- XT -1|0)
+            dq cfa_0branch      ;  (XT -1|0 -- XT <continue> | XT <jmp compile_number)
             ; jump ot run_it on immediate
-            dq cfa_0branch
             dq .run_it - $
-            ; compile in anger:
+            ; compile step!
             dq cfa_comma
+            dq cfa_branch
+            dq .compile_number - $
             .compile_number:
-
-        ; if IMMEDIATE, branch .run_it
-
-        ; compiling, so
-        ; write xt and advance here
-        ; branch .begin
+            dq cfa_drop         ; (addr 0 -- )
+            dq cfa_to_number    ; (addr -- int)
+            dq cfa_rt_lit       ; (int -- int cfa_lit)
+            dq cfa_lit
+            dq cfa_comma        ; (int cfa_lit -- int <compile cfa_lit)
+            dq cfa_comma        ; (int -- <compile the number>)
+            ; branch .begin
+            dq cfa_branch
+            dq .begin - $
         .run_it:
         ; run
         ; branch .begin; >number
         ; if state == 0, branch .run_num_error
         ; set state to 0
         ; unwind here
-        .run_num_error:
-        ; reset and error
-        .number:
+        .run_number:
+        dq cfa_drop             ; ( addr 0 -- addr )we arrive with 0 on the stack
+        dq cfa_to_number        ; ( addr -- value success)
+        dq cfa_0branch          ; ( value 0|-1 -- value <jmp handle_number> | value <continue>)
+        dq .handle_number - $
         ; if state == 0, branch .push_lit
         ; compiling, so:
         ; write LIT to here
@@ -421,7 +423,7 @@ hex_convert:
         mov r10b, [r8] ; the digit character to transform into a value
         cmp r10b, '0''
         jae .nine_check
-        call error_low_digit
+        jmp .error_result
         .nine_check:
         cmp r10b, '9'
         ja .hex_check ;out of 0-9 range, so let's hope it's a-f
@@ -439,12 +441,12 @@ hex_convert:
 
             cmp r10b, 'a'
             jae .fifteen_check
-            call error_low_hex_digit
+            jmp .error_result
 
         .fifteen_check:
             cmp r10b, 'f'
             jbe .got_hex
-            call error_high_hex_digit
+            jmp .error_result
 
         .got_hex:
         sub r10b, 0x57 ; magic number to leave 10-15 in r10b
@@ -457,6 +459,9 @@ hex_convert:
         je .ret
         inc r8
     jmp .loop
+    .error_result:
+    mov r11, 0
+    mov rax, 0
     .ret:
     mov [rel working_number], r11
     ret
@@ -467,23 +472,28 @@ dec_convert:
         mov r10b, [r8] ; the digit character to transform into a value
         cmp r10b, '0''
         jae .nine_check
-        call error_low_digit
+        jmp .error_result
         .nine_check:
             cmp r10b, '9'
             jbe .valid_digit
             ;out of 0-9 range
-            call error_high_dec_digit
+            jmp .error_result
         .valid_digit:
         sub r10b, '0' ; subtract off ASCII `0` (0x30) to get a value
         imul r11, r11, 10 ; I know, I know. Not using base saves a load and reduces register pressure
         add r11, r10
         dec r9b
         cmp r9b, 0
-        je .ret
+        je .success_result
         inc r8
     jmp .loop
-    .ret:
+    .error_result:
+    mov qword [rel working_number], 0
+    mov rax, 0
+    ret
+    .success_result:
     mov [rel working_number], r11
+    mov rax, -1
     ret
 
 oct_convert:
@@ -492,12 +502,12 @@ oct_convert:
         mov r10b, [r8] ; the digit character to transform into a value
         cmp r10b, '0''
         jae .seven_check
-        call error_low_digit
+        jmp .error_result
         .seven_check:
             cmp r10b, '7'
             jbe .valid_digit
             ;out of 0-9 range
-            call error_high_oct_digit
+            jmp .error_result
         .valid_digit:
         sub r10b, '0' ; subtract off ASCII `0` (0x30) to get a value
         imul r11, r11, 8 ; I know, I know. Not using base saves a load and reduces register pressure
@@ -507,6 +517,9 @@ oct_convert:
         je .ret
         inc r8
     jmp .loop
+    .error_result:
+    mov r11, 0
+    mov rax, 0
     .ret:
     mov [rel working_number], r11
     ret
@@ -517,10 +530,6 @@ callable_error error_data_underflow, error_data_underflow_msg
 callable_error error_data_overflow, error_data_overflow_msg
 callable_error error_bad_numeric_lieral, error_bad_numeric_lieral_msg
 callable_error error_bad_base, error_bad_base_msg
-callable_error error_low_digit, error_low_digit_msg
-callable_error error_bad_hex_digit, error_bad_hex_digit_msg
-callable_error error_high_hex_digit, error_high_hex_digit_msg
-callable_error error_high_dec_digit, error_high_dec_digit_msg
 callable_error error_input_buffer_overrun, error_input_buffer_overrun_msg
 callable_error error_ib_overrun_hard, error_ib_overrun_hard_msg
 callable_error error_ib_underrun_hard, error_ib_underrun_hard_msg
