@@ -44,13 +44,6 @@ _0branch:
     jmp _next
 
 _lit:
-
-    cmp qword [rel state], 0
-    jne .compile
-    .compile
-    jmp _next
-
-_rt_lit:
     overflow 1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_overflow
     mov r8, [IP_REG]
     stack_pushq r8, DATA_TOS_REG
@@ -490,9 +483,8 @@ _to_number:
     underflow 1, CELL_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
     overflow 1,  CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
     stack_popq r8, DATA_TOS_REG
-    call to_number ; throws on error
-    mov r8, [rel working_number]
-    stack_pushq r8, DATA_TOS_REG
+    call to_number
+    stack_pushq rdx, DATA_TOS_REG
     stack_pushq rax, DATA_TOS_REG
     jmp _next
 

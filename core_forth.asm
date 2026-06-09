@@ -32,6 +32,8 @@ section .data
     cfa_branch:                 dq _branch
     cfa_rp0:                    dq _rp0
     cfa_rp_store:               dq _rp_store
+    cfa_sp0:                    dq _sp0
+    cfa_sp_store:               dq _sp_store
     cfa_input_buffer:           dq _input_buffer
     cfa_tib:                    dq _tib
     cfa_input_pos:              dq _input_pos
@@ -42,7 +44,6 @@ section .data
     cfa_char_get:               dq _char_get
     cfa_0branch:                dq _0branch
     cfa_find:                   dq _find
-    cfa_rt_lit:                 dq _rt_lit
     cfa_0eq:                    dq _0eq
     cfa_swap:                   dq _swap
     cfa_lt0:                    dq _lt0
@@ -116,22 +117,24 @@ section .data
         .compile:
             ; TOS is still the flag. STATE is definitely 1. TOS is -1, 0, or 1
             dq cfa_dup          ; ( addr|XT -1|0|1 -- addr|XT -1|0|1 -1|0|1)
-            dq cfa_0branch      ; (addr|XT -1|0|1 -1|0|1 -- addr 0 <jmp compile_number> | XT -1|1 <continue>)
+            dq cfa_0branch      ; ( addr|XT -1|0|1 -1|0|1 -- addr 0 <jmp compile_number> | XT -1|1 <continue>)
             dq .compile_number - $
-            dq cfa_0lt          ;  ( XT -1|1 -- XT -1|0)
-            dq cfa_0branch      ;  (XT -1|0 -- XT <continue> | XT <jmp compile_number)
+            dq cfa_0lt          ; ( XT -1|1 -- XT -1|0)
+            dq cfa_0branch      ; ( XT -1|0 -- XT <continue> | XT <jmp compile_number)
             ; jump ot run_it on immediate
             dq .run_it - $
             ; compile step!
-            dq cfa_comma
-            dq cfa_branch
-            dq .compile_number - $
+            dq cfa_comma        ; ( XT -- <compiled word> )
+            ; dq cfa_branch
+            ;dq .compile_number - $ ; FALL THROUGH AS LONG AS .compile_number IS NEXT
             .compile_number:
-            dq cfa_drop         ; (addr 0 -- )
-            dq cfa_to_number    ; (addr -- int)
-            dq cfa_rt_lit       ; (int -- int cfa_lit)
-            dq cfa_lit
-            dq cfa_comma        ; (int cfa_lit -- int <compile cfa_lit)
+            dq cfa_to_number    ; ( addr -- int -1 | addr 0)
+            dq cfa_0branch
+            dq .write_and_abort - $
+            dq cfa_lit          ; ( int -- int cfa_lit)
+            dq cfa_lit          ; ^
+            dq cfa_comma        ; ( int cfa_lit -- int <compiile cfa_lit> )
+            dq cfa_comma        ; (int -- <compile int> )
             dq cfa_comma        ; (int -- <compile the number>)
             ; branch .begin
             dq cfa_branch
@@ -143,19 +146,19 @@ section .data
         ; set state to 0
         ; unwind here
         .run_number:
-        dq cfa_drop             ; ( addr 0 -- addr )we arrive with 0 on the stack
-        dq cfa_to_number        ; ( addr -- value success)
-        dq cfa_0branch          ; ( value 0|-1 -- value <jmp handle_number> | value <continue>)
-        dq .handle_number - $
-        ; if state == 0, branch .push_lit
-        ; compiling, so:
-        ; write LIT to here
-        ; write value to here
-        ; branch .begin
-        .push_lit:
-        ; push value onto stack
-        ; branch .begin
-
+        dq cfa_to_number        ; ( addr -- int -1 | addr 0 )
+        dq cfa_0branch          ; ( int -1 | addr 0 -- int <continue> | addr <jmp write and abort> )
+        dq .write_and_abort - $
+        dq cfa_branch
+        dq .begin - $
+        .write_and_abort:
+        ; ( addr -- <printed message> ) TODO: write error printing word
+        dq cfa_sp0
+        dq cfa_sp_store
+        dq cfa_lit
+        dq 0
+        dq cfa_state
+        dq cfa_store
         .exit:
             dq cfa_exit
     regular_entry _quit, "next", _next
@@ -164,7 +167,7 @@ section .data
     regular_entry _docol, "exit", _exit
     regular_enrty _exit, "branch", _branch
     regular_entry _branch, "0branch", _0branch
-    regular_entry _0branch, "lit", _rt_lit
+    regular_entry _0branch, "lit", _lit
     regular_entry _rt_lit, "key", _key
     regular_entry _key, "emit", _emit
     regular_entry _emit, "dup", _dup
@@ -387,24 +390,29 @@ to_number:
         sub rsp, 32
         call hex_convert
         add rsp, 32
-        jmp .handle_sign
+        jmp .error_check
     .dec:
         xor r10, r10
         sub rsp, 32
         call dec_convert
         add rsp, 32
-        jmp .handle_sign
+        jmp .error_check
     .oct:
         xor r10, r10
         sub rsp, 32
         call oct_convert
         add rsp, 32
-        jmp .handle_sign
-    .handle_sign:
+        jmp .error_check
+    .error_check:
+        cmp rax, -1
+        jne .handle_failure
         cmp byte [rel negative], 1
-        jne .sign_handled
+        jne .ret
         neg qword [rel working_number]
-    .sign_handled:
+        mov rdx, [rel working_number]
+    .handle_failure:
+        lea rdx, [rel word_buffer]
+    .ret:
     mov rsp, rbp
     pop rbp
     ret
@@ -452,18 +460,18 @@ hex_convert:
         sub r10b, 0x57 ; magic number to leave 10-15 in r10b
         ; jmp .acc fall through
         .acc:
-        imul r11, r11, 16 ; I know, I know. Not using base saves a load and reduces register pressure
-        add r11, r10
+        imul rdx, rdx, 16 ; I know, I know. Not using base saves a load and reduces register pressure
+        add rdx, r10
         dec r9b
         cmp r9b, 0
-        je .ret
+        je .success_result
         inc r8
     jmp .loop
     .error_result:
-    mov r11, 0
     mov rax, 0
-    .ret:
-    mov [rel working_number], r11
+    ret
+    .success_result:
+    mov rax, -1
     ret
 
 dec_convert:
@@ -480,19 +488,17 @@ dec_convert:
             jmp .error_result
         .valid_digit:
         sub r10b, '0' ; subtract off ASCII `0` (0x30) to get a value
-        imul r11, r11, 10 ; I know, I know. Not using base saves a load and reduces register pressure
-        add r11, r10
+        imul rdx, rdx, 10 ; I know, I know. Not using base saves a load and reduces register pressure
+        add rdx, r10
         dec r9b
         cmp r9b, 0
         je .success_result
         inc r8
     jmp .loop
     .error_result:
-    mov qword [rel working_number], 0
     mov rax, 0
     ret
     .success_result:
-    mov [rel working_number], r11
     mov rax, -1
     ret
 
@@ -510,18 +516,18 @@ oct_convert:
             jmp .error_result
         .valid_digit:
         sub r10b, '0' ; subtract off ASCII `0` (0x30) to get a value
-        imul r11, r11, 8 ; I know, I know. Not using base saves a load and reduces register pressure
-        add r11, r10
+        imul rdx, rdx, 8 ; I know, I know. Not using base saves a load and reduces register pressure
+        add rdx, r10
         dec r9b
         cmp r9b, 0
-        je .ret
+        je .success_result
         inc r8
     jmp .loop
     .error_result:
-    mov r11, 0
     mov rax, 0
-    .ret:
-    mov [rel working_number], r11
+    ret
+    .success_result:
+    mov rax, -1
     ret
 
 callable_error error_return_overflow, error_return_overflow_msg
