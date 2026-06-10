@@ -104,7 +104,7 @@ section .data
             dq cfa_0branch
             dq .exit - $
             ; get a word
-            dq cfa_word
+            dq cfa_word         ; TODO: Add remaining stack comments
             ; exit on 0-length word
             dq cfa_dup ; address of word_buffer
             dq cfa_char_get ; length byte of word
@@ -156,8 +156,8 @@ section .data
             dq cfa_branch
             dq .begin - $
         .run_number:
-            dq cfa_to_number        ; ( addr -- int -1 | addr 0 )
-            dq cfa_0branch          ; ( int -1 | addr 0 -- int <continue> | addr <jmp write and abort> )
+            dq cfa_to_number    ; ( addr -- int -1 | addr 0 )
+            dq cfa_0branch      ; ( int -1 | addr 0 -- int <continue> | addr <jmp write and abort> )
             dq .write_and_abort - $
             dq cfa_branch
             dq .begin - $
@@ -166,17 +166,17 @@ section .data
             ; minor wart: wb>pad is a convenience primitive that allows for a simpler type primiitive. rather than
             ;             write wb>pad in threaded code, I'm paying the cost of just dropping the address of
             ;             word_buffer.
-            dq cfa_drop             ; ( &word_buffer -- )
-            dq cfa_wb_to_pad        ; ( -- &pad <pad contains typable string representation of word_buffer> )
-            dq cfa_type             ; ( &pad -- <print unknown word> )
-            dq qstr                 ; ( -- &qstr )
-            dq cfa_type             ; ( &qstr -- <print " ?\n"> )
-            dq cfa_sp0              ; ( -- &data_stack )
-            dq cfa_sp_store         ; ( &data_stack -- <data stack pointer set to base> )
-            dq cfa_lit              ; ( -- 0 )
+            dq cfa_drop         ; ( &word_buffer -- )
+            dq cfa_wb_to_pad    ; ( -- &pad <pad contains typable string representation of word_buffer> )
+            dq cfa_type         ; ( &pad -- <print unknown word> )
+            dq qstr             ; ( -- &qstr )
+            dq cfa_type         ; ( &qstr -- <print " ?\n"> )
+            dq cfa_sp0          ; ( -- &data_stack )
+            dq cfa_sp_store     ; ( &data_stack -- <data stack pointer set to base> )
+            dq cfa_lit          ; ( -- 0 )
             dq 0
-            dq cfa_lit              ; ( 0 -- 0 &state )
-            dq cfa_state            ; ( 0 -- <state set to interpreting> )
+            dq cfa_lit          ; ( 0 -- 0 &state )
+            dq cfa_state        ; ( 0 -- <state set to interpreting> )
             dq cfa_store
         .exit:
             dq cfa_exit
