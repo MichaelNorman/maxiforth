@@ -37,6 +37,10 @@
     %%ok:
 %endmacro
 
+%macro ds_overflow 1
+    overflow %1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, DATA_TOS_REG, error_data_overflow
+%endmacro
+
 %macro stack_pushq 2 ; reg, tos
     mov [%2], %1
     add %2, CELL_SIZE
@@ -51,6 +55,10 @@
     call %5
     ; doesn't return, so no need to add 32 bytes back
     %%ok:
+%endmacro
+
+%macro ds_underflow 1
+    underflow %1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
 %endmacro
 
 %macro stack_popq 2; reg, tos

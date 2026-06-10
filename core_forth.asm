@@ -18,12 +18,15 @@ section .data
     error_input_buffer_overrun_msg db "Last character of input buffer was not white space.", 10, 0
     error_ib_overrun_hard_msg      db "Hard overrun of input buffer. Interpreter corrupted. Exit and restart.", 10, 0
     error_ib_underrun_hard_msg     db "Hard underrun of input buffer. Interpreter corrupted. Exit and restart.", 10, 0
+    qstr                           db " ?", 10, 0
+    okstr                          db " ok", 10, 0
 
     ; CFAs for manually coded compiled words:
     cfa_interpret: dq interpret_body
     cfa_quit:      dq quit_body
 
     ; CFAs for primitives:
+    cfa_sub:                    dq _sub
     cfa_emit:                   dq _emit
     cfa_lit:                    dq _lit
     cfa_exit:                   dq _exit
@@ -38,6 +41,7 @@ section .data
     cfa_tib:                    dq _tib
     cfa_input_pos:              dq _input_pos
     cfa_gt:                     dq _gt
+    cfa_gte:                    dq _gte
     cfa_0branch:                dq _0branch
     cfa_word:                   dq _word
     cfa_dup:                    dq _dup
@@ -52,6 +56,12 @@ section .data
     cfa_drop:                   dq _drop
     cfa_here:                   dq _here
     cfa_to_number:              dq _to_number
+    cfa_run:                    dq _run
+    cfa_cmove_desc:             dq _cmove_desc
+    cfa_cmove_asc:              dq _cmove_asc
+    cfa_wb_to_pad:              dq _wb_to_pad
+    cfa_type:                   dq _type
+    cfa_pad:                    dq _pad
 
     static_dictionary:
     label_quit:
@@ -66,6 +76,9 @@ section .data
     dq cfa_rp0
     dq cfa_rp_store
     .begin:
+    dq cfa_lit
+    dq okstr
+    dq cfa_type
     ; BEGIN
     dq cfa_refill
     dq cfa_interpret
@@ -83,21 +96,20 @@ section .data
         dq cfa_docol
         .begin:
             ; >in >= >#tib -> branch exit
-            dq cfa_input_pos
-            dq cfa_rt_lit
+            dq cfa_lit          ; (  -- INPUT_BUFFER_SIZE  )
             dq INPUT_BUFFER_SIZE
-            dq cfa_lt
+            dq cfa_lit          ; ( INPUT_BUFFER_SIZE -- INPUT_BUFFER_SIZE input_pos )
+            dq cfa_input_pos
+            dq cfa_gt           ; ( input_pos INPUT_BUFFER_SIZE -- -1 | 0)
             dq cfa_0branch
             dq .exit - $
             ; get a word
             dq cfa_word
-
             ; exit on 0-length word
             dq cfa_dup ; address of word_buffer
             dq cfa_char_get ; length byte of word
             dq cfa_0branch
             dq .exit - $
-
             ; find
             dq cfa_find         ; ( -- addr|XT -1|0|1)
             dq cfa_state        ; ( addr|XT -1|0|1-- addr|XT -1|0|1 0|-1 )
@@ -124,7 +136,7 @@ section .data
             ; jump ot run_it on immediate
             dq .run_it - $
             ; compile step!
-            dq cfa_comma        ; ( XT -- <compiled word> )
+            dq cfa_comma        ; ( XT -- <compile word> )
             ; dq cfa_branch
             ;dq .compile_number - $ ; FALL THROUGH AS LONG AS .compile_number IS NEXT
             .compile_number:
@@ -140,25 +152,32 @@ section .data
             dq cfa_branch
             dq .begin - $
         .run_it:
-        ; run
-        ; branch .begin; >number
-        ; if state == 0, branch .run_num_error
-        ; set state to 0
-        ; unwind here
+            dq cfa_run          ; ( XT -- <execute XT> )
+            dq cfa_branch
+            dq .begin - $
         .run_number:
-        dq cfa_to_number        ; ( addr -- int -1 | addr 0 )
-        dq cfa_0branch          ; ( int -1 | addr 0 -- int <continue> | addr <jmp write and abort> )
-        dq .write_and_abort - $
-        dq cfa_branch
-        dq .begin - $
+            dq cfa_to_number        ; ( addr -- int -1 | addr 0 )
+            dq cfa_0branch          ; ( int -1 | addr 0 -- int <continue> | addr <jmp write and abort> )
+            dq .write_and_abort - $
+            dq cfa_branch
+            dq .begin - $
         .write_and_abort:
-        ; ( addr -- <printed message> ) TODO: write error printing word
-        dq cfa_sp0
-        dq cfa_sp_store
-        dq cfa_lit
-        dq 0
-        dq cfa_state
-        dq cfa_store
+            ; ( addr -- <printed message> )
+            ; minor wart: wb>pad is a convenience primitive that allows for a simpler type primiitive. rather than
+            ;             write wb>pad in threaded code, I'm paying the cost of just dropping the address of
+            ;             word_buffer.
+            dq cfa_drop             ; ( &word_buffer -- )
+            dq cfa_wb_to_pad        ; ( -- &pad <pad contains typable string representation of word_buffer> )
+            dq cfa_type             ; ( &pad -- <print unknown word> )
+            dq qstr                 ; ( -- &qstr )
+            dq cfa_type             ; ( &qstr -- <print " ?\n"> )
+            dq cfa_sp0              ; ( -- &data_stack )
+            dq cfa_sp_store         ; ( &data_stack -- <data stack pointer set to base> )
+            dq cfa_lit              ; ( -- 0 )
+            dq 0
+            dq cfa_lit              ; ( 0 -- 0 &state )
+            dq cfa_state            ; ( 0 -- <state set to interpreting> )
+            dq cfa_store
         .exit:
             dq cfa_exit
     regular_entry _quit, "next", _next
@@ -227,8 +246,13 @@ section .data
     regular_entry _word, "0<", _0lt
     regular_entry _0lt, "0>", _0gt
     regular_enrty _0gt, ">number", _to_number
+    regular_entry _to_number, "cmove", _cmove_asc
+    regular_entry _cmove_asc, "cmove>", _cmove_desc
+    regular_entry _cmove_des, "wb>pad", _wb_to_pad
+    regular_entry _wb_to_pad, "pad",
+    regular_entry _pad, "type", _type
     initial_latest:
-    regular_entry _to_number, "accept", _accept
+    regular_entry _type, "accept", _accept
 
 section .bss
     main_rbp              resq 1
@@ -243,6 +267,7 @@ section .bss
     ; state
     latest                resq 1
     input_buffer          resb INPUT_BUFFER_SIZE ; tib, actually
+    pad                   resb PAD_SIZE
     input_pos             resq 1 ; index into input_buffer
     here                  resq 1
     state                 resb 1
