@@ -7,6 +7,7 @@ section .text
 
 ; pre : IP points at a cell with a valid CFA
 ; post: The CFA pointed to by IP is in W, IP advances one cell, execution has jumped to [W]
+; summary: Walks along a string of CFAs and runs them.
 _next:
     mov W_REG, [IP_REG]
     add IP_REG, POINTER_SIZE
@@ -14,18 +15,23 @@ _next:
 
 ; pre : W holds the CFA of a valid colon definition whose following token begins the word's body
 ; post: IP has been pushed onto the return stack, IP points at start of colon definition body
+; summary: Saves outer location, the word that called us, and begins crawling a colon-defined word that
+;          was called from another context, whether that was the outer loop or a running word.
+;          IOW: Execution continues at inner context.
 _docol:
-    overflow 1, CELL_SIZE, RETURN_STACK_SIZE, RETURN_TOS_REG, return_stack, error_return_overflow
+    rs_overflow 1
     stack_pushq IP_REG, RETURN_TOS_REG
     lea IP_REG, [W_REG + POINTER_SIZE]
     jmp _next
 
+; pre: Return stack contains pointer to outer context
+; post: Outer context is popped off of return stack into IP_REG. Execution continues at outer context
 _exit:
-    underflow 1, CELL_SIZE, RETURN_TOS_REG, return_stack, error_return_underflow
+    rs_underflow 1
     stack_popq IP_REG, RETURN_TOS_REG
-    int3
     jmp _next
 
+; *********************** branching primitives *************** ;
 _branch:
     mov r8, [IP_REG]
     add IP_REG, r8
@@ -62,7 +68,7 @@ _key:
 _emit:
     ds_underflow 1
     stack_popq rcx, DATA_TOS_REG
-    call_c putch, 32
+    call_c _putch, 32
     jmp _next
 
 _type:
@@ -119,17 +125,17 @@ _rot:
     mov r9, [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], r9
     mov [DATA_TOS_REG - CELL_SIZE], r8
-    jmp next
+    jmp _next
 
 _to_return:
     ds_underflow 1
-    overflow 1, CELL_SIZE, RETURN_STACK_SIZE, RETURN_TOS_REG, return_stack, error_return_overflow
+    rs_overflow 1
     stack_popq r8, DATA_TOS_REG
     stack_pushq r8, RETURN_TOS_REG
     jmp _next
 
 _to_data:
-    underflow 1, CELL_SIZE, RETURN_TOS_REG, return_stack, error_return_underflow
+    rs_underflow 1
     ds_overflow 1
     stack_popq r8, RETURN_TOS_REG
     stack_pushq r8, DATA_TOS_REG
@@ -142,28 +148,24 @@ _get_sp:
     jmp _next
 
 _get_rp:
-    overflow 1, CELL_SIZE, RETURN_STACK_SIZE, RETURN_TOS_REG, return_stack, error_return_overflow
+    rs_overflow 1
     stack_pushq RETURN_TOS_REG, RETURN_TOS_REG
     jmp _next
 
 ; ********************* state variables ********************* ;
-_dp:
+%macro pushvar 2
+push%1:
     ds_overflow 1
-    lea r8, [rel here]
+    mov r8, [rel %2]
     stack_pushq r8, DATA_TOS_REG
     jmp _next
+%endmacro
 
-_state:
-    ds_overflow 1
-    lea r8, [rel state]
-    stack_pushq r8, DATA_TOS_REG
-    jmp _next
+pushvar _dp, here
+pushvar _state, state
+pushvar _latest, latest
+pushvar _base, base
 
-_latest:
-    ds_overflow 1
-    lea r8, [rel latest]
-    stack_pushq r8, DATA_TOS_REG
-    jmp _next
 
 _input_pos:
     ds_overflow 1
@@ -283,12 +285,12 @@ _sp0:
 
 _rp_store:
     ds_underflow 1
-    stack_popq, RETURN_TOS_REG, DATA_TOS_REG
+    stack_popq RETURN_TOS_REG, DATA_TOS_REG
     jmp _next
 
 _sp_store:
     ds_underflow 1
-    stack_popq, DATA_TOS_REG, DATA_TOS_REG
+    stack_popq DATA_TOS_REG, DATA_TOS_REG
     jmp _next
 
 ; *********************** arithmetic ************************** ;
@@ -386,14 +388,14 @@ _sub_store:
 
 _lshift:
     ds_underflow 2
-    movzx ecx, byte [DATA_TOS_REG - 2*CELL_SIZE], cl
-    shl qword [DATA_TOS_REG - 2*CELL_SIZE]
+    movzx ecx, byte [DATA_TOS_REG - 2*CELL_SIZE]
+    shl qword [DATA_TOS_REG - 2*CELL_SIZE], cl
     sub DATA_TOS_REG, CELL_SIZE
     jmp _next
 
 _rshift:
     ds_underflow 2
-    movzx ecx, byte [DATA_TOS_REG - 2*CELL_SIZE], cl
+    movzx ecx, byte [DATA_TOS_REG - 2*CELL_SIZE] ; cl
     shr qword [DATA_TOS_REG - CELL_SIZE], cl
     sub DATA_TOS_REG, CELL_SIZE
     jmp _next
@@ -503,18 +505,7 @@ _ult:
 
 ; ********************* dictionary / compilation ****************** ;
 
-%macro pushvar 2
-%1:
-    ds_overflow 1
-    mov r8, [rel %2]
-    stack_pushq r8, DATA_TOS_REG
-    jmp _next
-%endmacro
 
-pushvar _here, here
-pushvar _state, state
-pushvar _latest, latest
-pushvar _base, base
 
 _create:
     jmp _next
@@ -532,7 +523,7 @@ _comma: ; write TOS to here, increment here
     ds_underflow 1
     stack_popq r8, DATA_TOS_REG
     mov [rel here], r8
-    add [rel here], CELL_SIZE
+    add qword [rel here], CELL_SIZE
     jmp _next
 
 ; (addr -- <value> <success>)
@@ -702,7 +693,7 @@ refill_internal:
             mov r9, rax
             cmp r9b, 13
             jne .overflow
-            mov [rdi + rbx], 13
+            mov byte [rdi + rbx], 13
             jmp .final
         .overflow:
             call error_input_buffer_overrun
@@ -721,11 +712,11 @@ refill_internal:
             ; patch up the terminal: bsp + ' ' + bsp to erase the character and put the cursor back.
             xor rcx, rcx
             mov ecx, 8
-            call putch
+            call _putch
             mov ecx, 32
-            call putch
+            call _putch
             mov ecx, 8
-            call putch
+            call _putch
             ; patch up input_buffer and index
             dec rbx
             mov byte [rdi + rbx], 0
@@ -735,7 +726,7 @@ refill_internal:
             mov byte [rdi + rbx], r9b
             ;show user
             mov rcx, r9
-            call putch
+            call _putch
             ; increment
             inc rbx
             jmp .stdin_loop
@@ -753,7 +744,7 @@ refill_internal:
         mov rcx, rax
         call strlen
         cmp rax, INPUT_BUFFER_SIZE - 1
-        jlt .fgets_ok
+        jl .fgets_ok
         ; must have 511-byte string.
         mov r9b, [rel input_buffer + INPUT_BUFFER_SIZE - 2]
         cmp r9b, 10

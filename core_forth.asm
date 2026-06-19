@@ -42,19 +42,19 @@ section .data
     cfa_input_pos:              dq _input_pos
     cfa_gt:                     dq _gt
     cfa_gte:                    dq _gte
-    cfa_0branch:                dq _0branch
     cfa_word:                   dq _word
     cfa_dup:                    dq _dup
     cfa_char_get:               dq _char_get
     cfa_0branch:                dq _0branch
+    cfa_comma:                  dq _comma
     cfa_find:                   dq _find
     cfa_0eq:                    dq _0eq
     cfa_swap:                   dq _swap
-    cfa_lt0:                    dq _lt0
-    cfa_gt0:                    dq _gt0
-    cfa_state:                  dq _state
+    cfa_0lt:                    dq _0lt
+    cfa_0gt:                    dq _0gt
+    cfa_state:                  dq push_state
     cfa_drop:                   dq _drop
-    cfa_here:                   dq _here
+    cfa_here:                   dq push_dp
     cfa_to_number:              dq _to_number
     cfa_run:                    dq _run
     cfa_cmove_desc:             dq _cmove_desc
@@ -69,7 +69,6 @@ section .data
     db 4
     db "quit"
     times 27 db 0
-    dq cfa_docol
     ; BEGIN QUIT LOOP BODY
     quit_body:
     dq cfa_docol
@@ -101,7 +100,7 @@ section .data
             dq cfa_lit          ; ( INPUT_BUFFER_SIZE -- INPUT_BUFFER_SIZE input_pos )
             dq cfa_input_pos
             dq cfa_gt           ; ( input_pos INPUT_BUFFER_SIZE -- -1 | 0)
-            dq cfa_0branch
+            dq cfa_0branch      ; ( -1 -- <continue> ) | ( 0 -- <jmp exit> )
             dq .exit - $
             ; get a word
             dq cfa_word         ; TODO: Add remaining stack comments
@@ -176,18 +175,18 @@ section .data
             dq cfa_lit          ; ( -- 0 )
             dq 0
             dq cfa_lit          ; ( 0 -- 0 &state )
-            dq cfa_state        ; ( 0 -- <state set to interpreting> )
-            dq cfa_store
+            dq cfa_state
+            dq cfa_sp_store     ; ( 0 &state -- <state set to interpreting> )
         .exit:
             dq cfa_exit
     regular_entry _quit, "next", _next
     regular_entry _next, "refill", _refill
     regular_entry _refill, "docol", _docol
     regular_entry _docol, "exit", _exit
-    regular_enrty _exit, "branch", _branch
+    regular_entry _exit, "branch", _branch
     regular_entry _branch, "0branch", _0branch
     regular_entry _0branch, "lit", _lit
-    regular_entry _rt_lit, "key", _key
+    regular_entry _lit, "key", _key
     regular_entry _key, "emit", _emit
     regular_entry _emit, "dup", _dup
     regular_entry _dup, "2dup", _2dup
@@ -199,10 +198,10 @@ section .data
     regular_entry _to_return, "r>", _to_data
     regular_entry _to_data, "sp@", _get_sp
     regular_entry _get_sp, "rp@", _get_rp
-    regular_entry _get_rp, "here", _dp
-    regular_entry _dp, "state", _state
-    regular_entry _state, "latest", _latest
-    regular_entry _latest, ">in", _input_pos
+    regular_entry _get_rp, "here", push_dp
+    regular_entry push_dp, "state", push_state
+    regular_entry push_state, "latest", push_latest
+    regular_entry push_latest, ">in", _input_pos
     regular_entry _input_pos, "source", _input_buffer
     regular_entry _input_buffer, "@", _get
     regular_entry _get, "!", _store
@@ -227,13 +226,10 @@ section .data
     regular_entry _lte, "=", _eq
     regular_entry _eq, ">=", _gte
     regular_entry _gte, ">", _gt
-    regular_entry _gt, "0=", _0=
-    regular_entry _0=, "u<", _ult
-    regular_entry _ult, "here", _here
-    regular_entry _here, "state", _state
-    regular_entry _state, "latest", _latest
-    regular_entry _latest, "base', _base
-    regular_entry _base, "create", _create
+    regular_entry _gt, "0=", _0eq
+    regular_entry _0eq, "u<", _ult
+    regular_entry _ult, "base", push_base
+    regular_entry push_base, "create", _create
     regular_entry _create, "find", _find_word
     regular_entry _find_word, ",", _comma
     regular_entry _comma, "run", _run
@@ -245,11 +241,11 @@ section .data
     regular_entry _tib, "word", _word
     regular_entry _word, "0<", _0lt
     regular_entry _0lt, "0>", _0gt
-    regular_enrty _0gt, ">number", _to_number
+    regular_entry _0gt, ">number", _to_number
     regular_entry _to_number, "cmove", _cmove_asc
     regular_entry _cmove_asc, "cmove>", _cmove_desc
-    regular_entry _cmove_des, "wb>pad", _wb_to_pad
-    regular_entry _wb_to_pad, "pad",
+    regular_entry _cmove_desc, "wb>pad", _wb_to_pad
+    regular_entry _wb_to_pad, "pad", _pad
     regular_entry _pad, "type", _type
     initial_latest:
     regular_entry _type, "accept", _accept
@@ -271,6 +267,7 @@ section .bss
     input_pos             resq 1 ; index into input_buffer
     here                  resq 1
     state                 resb 1
+    base                  resq 1
     working_number        resq 1
     negative              resb 1
 
@@ -295,20 +292,17 @@ main:
     mov [rel fp_tos], r8
     mov [rel main_rbp], rbp
     sub rsp, 32
-    lea rax, [rel latest_label]
+    lea rax, [rel initial_latest]
     mov [rel latest], rax
     xor rax, rax
     mov rcx, 0
     call __acrt_iob_func
     mov [rel stdin], rax
     ; jump start quit loop
+    lea IP_REG, [rel quit_body]
+    jmp _next
+    leave_call ; will never get here. Should do leave_call in bye or its equivalent
     ret
-
-; skip_space and fill are currently stupid. They were from an unbuffered input model that just filled the word,
-; or from some transitional state.
-
-
-
 
 _find:
     ; start at latest
@@ -361,7 +355,7 @@ _find:
 
         ; fill rdx with 1 or -1 depending on the flag
         movzx r8d, byte [rdx + WORD_OFFSET]
-        test r8b, IMMEDIATE_MASK
+        test r8b, IMMEDIATE
         jnz .immediate
         mov rdx, -1
         jmp .ret
@@ -454,7 +448,7 @@ hex_convert:
     mov r11, [rel working_number]
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
-        cmp r10b, '0''
+        cmp r10b, '0'
         jae .nine_check
         jmp .error_result
         .nine_check:
@@ -503,7 +497,7 @@ dec_convert:
     mov r11, [rel working_number]
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
-        cmp r10b, '0''
+        cmp r10b, '0'
         jae .nine_check
         jmp .error_result
         .nine_check:
@@ -531,7 +525,7 @@ oct_convert:
     mov r11, [rel working_number]
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
-        cmp r10b, '0''
+        cmp r10b, '0'
         jae .seven_check
         jmp .error_result
         .seven_check:

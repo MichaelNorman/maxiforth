@@ -26,39 +26,52 @@
 
 ; pre : limit is one unit past the writable region. tos points to the next location that will be written
 ; post: cleared to write or error, rcx & rdx clobbered
-%macro overflow 6 ; num_items, width, size, tos, stack, error
-    lea rcx, [%4 + %1 * %2]
-    lea rdx, [rel %5 + %3 * %2]
+
+%macro ds_overflow 1
+    lea rcx, [DATA_TOS_REG + POINTER_SIZE * %1]
+    lea rdx, [rel data_stack + DATA_STACK_SIZE * POINTER_SIZE]
     cmp rcx, rdx
     jb %%ok
     sub rsp, 32
-    call %6
-    ; doesn't return, so no need to add 32 bytes back
-    %%ok:
-%endmacro
-
-%macro ds_overflow 1
-    overflow %1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, DATA_TOS_REG, error_data_overflow
-%endmacro
-
-%macro stack_pushq 2 ; reg, tos
-    mov [%2], %1
-    add %2, CELL_SIZE
-%endmacro
-
-%macro underflow 5 ; num_items, width, tos, stack, error_return_overflow
-    lea rcx, [rel %4 + %1 * %2]
-    mov rdx, %3
-    cmp rcx, rdx
-    jbe %%ok
-    sub rsp, 32
-    call %5
+    call error_data_overflow
     ; doesn't return, so no need to add 32 bytes back
     %%ok:
 %endmacro
 
 %macro ds_underflow 1
-    underflow %1, CELL_SIZE, DATA_STACK_SIZE, DATA_TOS_REG, data_stack, error_data_underflow
+    lea rcx, [DATA_TOS_REG - POINTER_SIZE * %1]
+    lea rdx, [rel data_stack]
+    cmp rdx, rcx
+    jbe %%ok
+    sub rsp, 32
+    call error_data_underflow
+    %%ok:
+%endmacro
+
+%macro rs_overflow 1
+    lea rcx, [RETURN_TOS_REG + POINTER_SIZE * %1]
+    lea rdx, [rel return_stack + RETURN_STACK_SIZE * POINTER_SIZE]
+    cmp rcx, rdx
+    jb %%ok
+    sub rsp, 32
+    call error_return_overflow
+    ; doesn't return, so no need to add 32 bytes back
+    %%ok:
+%endmacro
+
+%macro rs_underflow 1
+    lea rcx, [RETURN_TOS_REG - POINTER_SIZE * %1]
+    lea rdx, [rel return_stack]
+    cmp rdx, rcx
+    jbe %%ok
+    sub rsp, 32
+    call error_return_underflow
+    %%ok:
+%endmacro
+
+%macro stack_pushq 2 ; reg, tos
+    mov [%2], %1
+    add %2, CELL_SIZE
 %endmacro
 
 %macro stack_popq 2; reg, tos
