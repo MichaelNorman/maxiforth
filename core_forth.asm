@@ -21,8 +21,9 @@ section .data
     qstr                           db " ?", 10, 0
     okstr                          db " ok", 10, 0
 
+    align 16
     ; CFAs for manually coded compiled words:
-    cfa_interpret: dq interpret_body
+    ;cfa_interpret: dq interpret_body
     cfa_quit:      dq quit_body
 
     ; CFAs for primitives:
@@ -47,7 +48,7 @@ section .data
     cfa_char_get:               dq _char_get
     cfa_0branch:                dq _0branch
     cfa_comma:                  dq _comma
-    cfa_find:                   dq _find
+    cfa_find:                   dq _find_word ; used to be _find
     cfa_0eq:                    dq _0eq
     cfa_swap:                   dq _swap
     cfa_0lt:                    dq _0lt
@@ -61,12 +62,16 @@ section .data
     cfa_cmove_asc:              dq _cmove_asc
     cfa_wb_to_pad:              dq _wb_to_pad
     cfa_type:                   dq _type
+    cfa_ctype:                  dq _ctype
     cfa_pad:                    dq _pad
+    cfa_bye:                    dq _bye
+    cfa_pause:                  dq _pause
 
+    align 16
     static_dictionary:
     label_quit:
     dq 0
-    db 4
+    db 4 | SMUDGE
     db "quit"
     times 27 db 0
     ; BEGIN QUIT LOOP BODY
@@ -75,46 +80,51 @@ section .data
     dq cfa_rp0
     dq cfa_rp_store
     .begin:
-    dq cfa_lit
+    dq cfa_lit                 ; ( -- okstraddr)
     dq okstr
-    dq cfa_type
+    dq cfa_ctype               ; ( okstraddr -- < " ok" printed> )
     ; BEGIN
-    dq cfa_refill
+    dq cfa_refill              ; (
+    dq cfa_0branch
+    dq .fault - $
     dq cfa_interpret
     ; REPEAT
     dq cfa_branch
     dq quit_body.begin - $
+    .fault:
+    dq cfa_bye
     ; END QUIT LOOP BODY
     label_interpret:
     dq label_quit
     db 9
     db "interpret"
     times 22 db 0
+    cfa_interpret:
+        dq _docol
     ; BEGIN INTERPRET BODY
     interpret_body:
-        dq cfa_docol
         .begin:
             ; >in >= >#tib -> branch exit
             dq cfa_lit          ; (  -- INPUT_BUFFER_SIZE  )
             dq INPUT_BUFFER_SIZE
-            dq cfa_lit          ; ( INPUT_BUFFER_SIZE -- INPUT_BUFFER_SIZE input_pos )
-            dq cfa_input_pos
+            dq cfa_input_pos    ; ( INPUT_BUFFER_SIZE -- INPUT_BUFFER_SIZE input_pos )
             dq cfa_gt           ; ( input_pos INPUT_BUFFER_SIZE -- -1 | 0)
             dq cfa_0branch      ; ( -1 -- <continue> ) | ( 0 -- <jmp exit> )
             dq .exit - $
             ; get a word
-            dq cfa_word         ; TODO: Add remaining stack comments
+            dq cfa_word         ; ( -- addr )
             ; exit on 0-length word
-            dq cfa_dup ; address of word_buffer
-            dq cfa_char_get ; length byte of word
-            dq cfa_0branch
+            dq cfa_dup          ; ( addr -- addr addr )
+            dq cfa_char_get     ; ( addr addr -- addr byte)
+            dq cfa_0branch      ; ( addr byte -- addr <continue> | addr <jmp exit> )
             dq .exit - $
             ; find
-            dq cfa_find         ; ( -- addr|XT -1|0|1)
-            dq cfa_state        ; ( addr|XT -1|0|1-- addr|XT -1|0|1 0|-1 )
-            dq cfa_0eq          ; ( addr|XT -1|0|1 0|-1--  addr|XT -1|0|1 -1|0)
-            dq cfa_0branch      ; ( addr|XT -1|0|1 -1|0 -- addr|XT -1|0|1 <continue>) |
-                                                          ; addr|XT -1|0|1 <jmp compile>)
+            dq cfa_find         ; ( addr -- addr 0 | XT ( -1|1 )
+            dq cfa_state        ; ( addr 0 | XT (-1|1)  -- (addr 0 | XT (-1|1) )  (0|1) )
+            ; dq cfa_pause
+            dq cfa_0eq          ; ( addr 0 | XT (-1|1) )  (0|1)  --   ( addr 0 | XT (-1|1) )  (-1|0) )
+            ; dq cfa_pause
+            dq cfa_0branch      ; ( ( addr 0 | XT (-1|1) )  (-1|0) --( addr 0 | XT (-1|1) <continue> | <jmp compile>) )
             dq .compile - $     ; --
             ; in "running" state
             dq cfa_dup          ; (addr|XT -1|0|1 -- addr|XT -1|0|1  -1|0|1)
@@ -139,6 +149,7 @@ section .data
             ; dq cfa_branch
             ;dq .compile_number - $ ; FALL THROUGH AS LONG AS .compile_number IS NEXT
             .compile_number:
+            dq cfa_pause
             dq cfa_to_number    ; ( addr -- int -1 | addr 0)
             dq cfa_0branch
             dq .write_and_abort - $
@@ -155,6 +166,7 @@ section .data
             dq cfa_branch
             dq .begin - $
         .run_number:
+            dq cfa_drop
             dq cfa_to_number    ; ( addr -- int -1 | addr 0 )
             dq cfa_0branch      ; ( int -1 | addr 0 -- int <continue> | addr <jmp write and abort> )
             dq .write_and_abort - $
@@ -168,8 +180,9 @@ section .data
             dq cfa_drop         ; ( &word_buffer -- )
             dq cfa_wb_to_pad    ; ( -- &pad <pad contains typable string representation of word_buffer> )
             dq cfa_type         ; ( &pad -- <print unknown word> )
+            dq cfa_lit
             dq qstr             ; ( -- &qstr )
-            dq cfa_type         ; ( &qstr -- <print " ?\n"> )
+            dq cfa_ctype         ; ( &qstr -- <print " ?\n"> )
             dq cfa_sp0          ; ( -- &data_stack )
             dq cfa_sp_store     ; ( &data_stack -- <data stack pointer set to base> )
             dq cfa_lit          ; ( -- 0 )
@@ -247,14 +260,21 @@ section .data
     regular_entry _cmove_desc, "wb>pad", _wb_to_pad
     regular_entry _wb_to_pad, "pad", _pad
     regular_entry _pad, "type", _type
+    regular_entry _type, "bye", _bye
+    regular_entry _bye, "ctype", _ctype
     initial_latest:
-    regular_entry _type, "accept", _accept
+    regular_entry _ctype, "accept", _accept
+    initial_here:
 
 section .bss
+    alignb 16
+    dynammic_dictionary   resb DYNA_DICT_SIZE
+    dyna_dict_end:
     main_rbp              resq 1
     stdin                 resq 1
     word_buffer           resb 32 ; ANS Forth standard 31-byte word with length prefix
     current_char          resb 1
+    alignb 16
     data_stack            resb DATA_STACK_SIZE * POINTER_SIZE
     return_stack          resb RETURN_STACK_SIZE * POINTER_SIZE
     file_pointer_stack    resb FILE_POINTER_STACK_SIZE * POINTER_SIZE
@@ -266,9 +286,8 @@ section .bss
     pad                   resb PAD_SIZE
     input_pos             resq 1 ; index into input_buffer
     here                  resq 1
-    state                 resb 1
+    state                 resq 1
     base                  resq 1
-    working_number        resq 1
     negative              resb 1
 
 section .text
@@ -298,18 +317,26 @@ main:
     mov rcx, 0
     call __acrt_iob_func
     mov [rel stdin], rax
+    mov qword [rel base], 10 ; start out intuitively
+    lea rax, [rel initial_here]
+    mov qword [rel here], rax
+    mov qword [rel state], 0
     ; jump start quit loop
-    lea IP_REG, [rel quit_body]
+    lea IP_REG, [rel quit_body + POINTER_SIZE] ; skip cfa_docol
     jmp _next
+
+    .fault:
     leave_call ; will never get here. Should do leave_call in bye or its equivalent
     ret
 
+; presumes that the address of the word buffer has been loaded into r8
 _find:
     ; start at latest
     push rbp
     mov rbp, rsp
     xor rax, rax
-    lea r8, [rel word_buffer]
+    ;lea r8, [rel word_buffer]
+    mov r11, r8 ; stash for later
     ; store comparison limit
     mov rcx, r8
     add rcx, 24
@@ -317,7 +344,7 @@ _find:
     ; treat 32-byte names as four qwords for comparison, bail on mismatch
     .initial_compare: ; first qword in dictionary name could have mask values
     mov r9, rdx
-    add r9, 8 ; offset for name start
+    add r9, POINTER_SIZE ; offset for name start
     ; get ahold of the value at the address in r9
     mov r10, [r9]
     ; mask out flags in first byte
@@ -347,7 +374,7 @@ _find:
         je .not_found
         ; follow the previous pointer
         mov rdx, [rdx]
-        lea r8, [rel word_buffer]
+        mov r8, r11
         ; start afresh in a new word
         jmp .initial_compare
     .success:
@@ -363,7 +390,7 @@ _find:
             mov rdx, 1
             jmp .ret
     .not_found:
-        lea rax, [rel word_buffer]
+        mov rax, r11
         mov rdx, 0
     .ret:
         mov rsp, rbp
@@ -375,12 +402,12 @@ to_number:
     mov rbp, rsp
     ; presume the address to a 32-byte array is in r8
     ; it is a length-prefixed 31-byte max value (32 bytes total).
-    mov qword [rel working_number], 0 ; initialize positive accumulator
     movzx r9d, byte [r8] ; load length byte
     inc r8 ; move to start of string
     xor rax, rax
     mov al, [r8] ; get possible sign bit
     ; handle sign, if present
+    mov byte [rel negative], 0
     cmp al, '-'
     jne .check_plus
     mov byte [rel negative], 1
@@ -427,8 +454,8 @@ to_number:
         jne .handle_failure
         cmp byte [rel negative], 1
         jne .ret
-        neg qword [rel working_number]
-        mov rdx, [rel working_number]
+        neg rdx
+        jmp .ret
     .handle_failure:
         lea rdx, [rel word_buffer]
     .ret:
@@ -445,7 +472,7 @@ to_number:
 ; r10 is all balls
 
 hex_convert:
-    mov r11, [rel working_number]
+    xor rdx, rdx
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
         cmp r10b, '0'
@@ -494,9 +521,10 @@ hex_convert:
     ret
 
 dec_convert:
-    mov r11, [rel working_number]
+    xor rdx, rdx
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
+        int3
         cmp r10b, '0'
         jae .nine_check
         jmp .error_result
@@ -522,7 +550,7 @@ dec_convert:
     ret
 
 oct_convert:
-    mov r11, [rel working_number]
+    xor rdx, rdx
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
         cmp r10b, '0'

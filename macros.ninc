@@ -87,13 +87,16 @@
 
 ; post: IP points to quit
 %macro throw 1
+    mov rbp, [rel main_rbp]
+    mov rsp, rbp
+    and rsp, -0x10
     sub rsp, 32
     lea rcx, [rel %1]
     call printf
     add rsp, 32
     lea DATA_TOS_REG, [rel data_stack]
     lea RETURN_TOS_REG, [rel return_stack]
-    lea IP_REG, [rel quit_label + CFA_OFFSET + POINTER_SIZE]
+    lea IP_REG, [rel label_quit + CFA_OFFSET + POINTER_SIZE] ; explicitly skip docol
     mov rbp, [rel main_rbp]
     jmp _next
 %endmacro

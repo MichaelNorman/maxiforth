@@ -12,6 +12,7 @@
 %define FILE_POINTER_STACK_SIZE   16
 %define INPUT_BUFFER_SIZE        512
 %define PAD_SIZE                 512
+%define DYNA_DICT_SIZE           1 << 16
 
 %define IMMEDIATE               0x20
 %define SMUDGE                  0x40

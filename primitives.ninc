@@ -71,6 +71,14 @@ _emit:
     call_c _putch, 32
     jmp _next
 
+_ctype:
+    ds_underflow 1
+    stack_popq rcx, DATA_TOS_REG
+    sub rsp, 32
+    call printf
+    add rsp, 32
+    jmp _next
+
 _type:
     ds_underflow 1
     stack_popq rcx, DATA_TOS_REG
@@ -461,6 +469,7 @@ _gt:
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
     jmp _next
+
 _0eq:
     ds_underflow 1
     cmp qword [DATA_TOS_REG - CELL_SIZE], 0
@@ -505,18 +514,18 @@ _ult:
 
 ; ********************* dictionary / compilation ****************** ;
 
-
-
 _create:
     jmp _next
 
 _find_word:
-    ds_overflow 2
+    ds_underflow 1
+    ds_overflow 1
+    stack_popq r8, DATA_TOS_REG ; addr
     sub rsp, 32
     call _find
     add rsp, 32
-    stack_pushq rax, DATA_TOS_REG
-    stack_pushq rdx, DATA_TOS_REG
+    stack_pushq rax, DATA_TOS_REG ; addr | XT
+    stack_pushq rdx, DATA_TOS_REG ; 0 = not found (nos=addr), -1 = regular (nos=XT), 1 = immediate (nos=XT)
     jmp _next
 
 _comma: ; write TOS to here, increment here
@@ -597,6 +606,8 @@ _word:
         movzx r9d, byte [r8]
         ;   if character is white space (including '\n`)
         ;    update and jmp _next
+        cmp r9b, 0
+        je .exit
         cmp r9b, 10
         je .exit
         cmp r9b, 13
@@ -634,7 +645,8 @@ _word:
 _run:
     ds_underflow 1
     stack_popq r8, DATA_TOS_REG
-    jmp [r8]
+    mov W_REG, [r8]
+    jmp [W_REG]
 
 _refill:
     call refill_internal
@@ -642,6 +654,7 @@ _refill:
 
 ; refill input buffer from source
 refill_internal:
+    enter_call
     sub rsp, 32
     ds_overflow 2
     ; clear the input buffer
@@ -768,8 +781,15 @@ refill_internal:
         ; fall through to .final because we got a line and handled cleanup
     .final:
     add rsp, 32
-    inc rbx
-    mov [rel input_buffer], rdi
-    stack_pushq rdi, DATA_TOS_REG
-    stack_pushq rbx, DATA_TOS_REG
+    mov r8, -1
+    leave_call
+    stack_pushq r8, DATA_TOS_REG
     ret
+
+_bye:
+    jmp main.fault
+
+_pause:
+    int3
+    jmp _next
+
