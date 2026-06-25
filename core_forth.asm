@@ -115,7 +115,7 @@ section .data
             dq cfa_word         ; ( -- addr )
             ; exit on 0-length word
             dq cfa_dup          ; ( addr -- addr addr )
-            dq cfa_char_get     ; ( addr addr -- addr byte)
+            dq cfa_char_get     ; ( addr addr -- addr byte )
             dq cfa_0branch      ; ( addr byte -- addr <continue> | addr <jmp exit> )
             dq .exit - $
             ; find
@@ -149,7 +149,6 @@ section .data
             ; dq cfa_branch
             ;dq .compile_number - $ ; FALL THROUGH AS LONG AS .compile_number IS NEXT
             .compile_number:
-            dq cfa_pause
             dq cfa_to_number    ; ( addr -- int -1 | addr 0)
             dq cfa_0branch
             dq .write_and_abort - $
@@ -331,30 +330,31 @@ main:
 
 ; presumes that the address of the word buffer has been loaded into r8
 _find:
-    ; start at latest
     push rbp
     mov rbp, rsp
     xor rax, rax
-    ;lea r8, [rel word_buffer]
-    mov r11, r8 ; stash for later
-    ; store comparison limit
+    ; start at latest
+    lea rdx, [rel latest]
+    mov r11, r8 ; stash word address for later
+    ; store comparison limit, noting that we are comparing by words
     mov rcx, r8
     add rcx, 24
-    lea rdx, [rel latest]
     ; treat 32-byte names as four qwords for comparison, bail on mismatch
     .initial_compare: ; first qword in dictionary name could have mask values
     mov r9, rdx
     add r9, POINTER_SIZE ; offset for name start
     ; get ahold of the value at the address in r9
-    mov r10, [r9]
-    ; mask out flags in first byte
-    and r10, 0xFFFFFFFFFFFFFF1F
+    mov r10, [r8]
+    ; mask out flags in first byte (We could grab a byte, but and(X,1) is X, so we can just grab the word)
+    test r10, SMUDGE
     ; compare first chunk
-    cmp r10, [r8]
+    jnz .previous
+    and r10, 0xFFFFFFFFFFFFFF1F
+    cmp r10, [r9]
     jne .previous
     ; move to next chunk and loop naively
-    add r8, 8
-    add r9, 8
+    add r8, POINTER_SIZE
+    add r9, POINTER_SIZE
     .cmp_loop:
         ; move on to previous entry if we miss
         mov r10, [r8]
@@ -374,6 +374,7 @@ _find:
         je .not_found
         ; follow the previous pointer
         mov rdx, [rdx]
+        ; reset word pointer
         mov r8, r11
         ; start afresh in a new word
         jmp .initial_compare
@@ -384,6 +385,7 @@ _find:
         movzx r8d, byte [rdx + WORD_OFFSET]
         test r8b, IMMEDIATE
         jnz .immediate
+        ; .regular:
         mov rdx, -1
         jmp .ret
         .immediate:
@@ -524,7 +526,6 @@ dec_convert:
     xor rdx, rdx
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
-        int3
         cmp r10b, '0'
         jae .nine_check
         jmp .error_result

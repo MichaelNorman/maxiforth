@@ -644,8 +644,7 @@ _word:
 
 _run:
     ds_underflow 1
-    stack_popq r8, DATA_TOS_REG
-    mov W_REG, [r8]
+    stack_popq W_REG, DATA_TOS_REG
     jmp [W_REG]
 
 _refill:
