@@ -149,7 +149,7 @@ section .data
             dq cfa_comma        ; ( XT -- <compile word> )
             ; dq cfa_branch
             ;dq .compile_number - $ ; FALL THROUGH AS LONG AS .compile_number IS NEXT
-            .compile_number:
+        .compile_number:
             dq cfa_to_number    ; ( addr -- int -1 | addr 0)
             dq cfa_0branch
             dq .write_and_abort - $
