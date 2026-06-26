@@ -164,7 +164,7 @@ _get_rp:
 %macro pushvar 2
 push%1:
     ds_overflow 1
-    mov r8, [rel %2]
+    lea r8, [rel %2]
     stack_pushq r8, DATA_TOS_REG
     jmp _next
 %endmacro

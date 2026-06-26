@@ -24,7 +24,7 @@ section .data
     align 16
     ; CFAs for manually coded compiled words:
     ;cfa_interpret: dq interpret_body
-    cfa_quit:      dq quit_body
+    cfa_quit:                   dq quit_body
 
     ; CFAs for primitives:
     cfa_sub:                    dq _sub
@@ -54,6 +54,8 @@ section .data
     cfa_0lt:                    dq _0lt
     cfa_0gt:                    dq _0gt
     cfa_state:                  dq push_state
+    cfa_get:                    dq _get
+    cfa_store:                  dq _store
     cfa_drop:                   dq _drop
     cfa_here:                   dq push_dp
     cfa_to_number:              dq _to_number
@@ -117,13 +119,12 @@ section .data
             dq cfa_dup          ; ( addr -- addr addr )
             dq cfa_char_get     ; ( addr addr -- addr byte )
             dq cfa_0branch      ; ( addr byte -- addr <continue> | addr <jmp exit> )
-            dq .exit - $
+            dq .drop_exit - $
             ; find
             dq cfa_find         ; ( addr -- addr 0 | XT ( -1|1 )
             dq cfa_state        ; ( addr 0 | XT (-1|1)  -- (addr 0 | XT (-1|1) )  (0|1) )
-            ; dq cfa_pause
+            dq cfa_get
             dq cfa_0eq          ; ( addr 0 | XT (-1|1) )  (0|1)  --   ( addr 0 | XT (-1|1) )  (-1|0) )
-            ; dq cfa_pause
             dq cfa_0branch      ; ( ( addr 0 | XT (-1|1) )  (-1|0) --( addr 0 | XT (-1|1) <continue> | <jmp compile>) )
             dq .compile - $     ; --
             ; in "running" state
@@ -181,14 +182,16 @@ section .data
             dq cfa_type         ; ( &pad -- <print unknown word> )
             dq cfa_lit
             dq qstr             ; ( -- &qstr )
-            dq cfa_ctype         ; ( &qstr -- <print " ?\n"> )
-            dq cfa_sp0          ; ( -- &data_stack )
-            dq cfa_sp_store     ; ( &data_stack -- <data stack pointer set to base> )
+            dq cfa_ctype        ; ( &qstr -- <print " ?\n"> )
             dq cfa_lit          ; ( -- 0 )
             dq 0
-            dq cfa_lit          ; ( 0 -- 0 &state )
-            dq cfa_state
-            dq cfa_sp_store     ; ( 0 &state -- <state set to interpreting> )
+            ; dq cfa_lit          ; ( 0 -- 0 &state )
+            dq cfa_state        ; ( 0 -- 0 &state )
+            dq cfa_store        ; ( 0 &state -- <state set to interpreting> )
+            dq cfa_sp0          ; ( -- &data_stack )
+            dq cfa_sp_store     ; ( &data_stack -- <data stack pointer set to base> )
+        .drop_exit:
+            dq cfa_drop
         .exit:
             dq cfa_exit
     regular_entry _quit, "next", _next
