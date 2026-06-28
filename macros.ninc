@@ -120,3 +120,44 @@
 %macro regular_entry 3 ; prev word label
     masked_dict_entry %1, %2, %3, 0
 %endmacro
+
+%macro var_of 6 ; base, tos, width, items, stack_size, error
+    push r8
+    push r9
+    lea r8, [rel %1] ; base
+    add r8, %5       ; base + stack_size, this is one past the limit
+    mov r9, [rel %2] ; tos is a variable that contains the address of the top of the stack
+    add r9, %3*%4    ; tos + items * width = next_slot
+    cmp r9, r8       ; next_slot >= max_slot?
+    jb %%ok
+    call %6 ; This won't return
+    %%ok:
+    pop r9
+    pop r8
+%endmacro
+
+%macro var_uf 5; base, tos, width, items, error
+    push r8
+    push r9
+    lea r8, [rel %1] ; base
+    mov r9, [rel %2] ; tos  is a variable that contains the address of the top of the stack
+    sub r9, %3*%4    ; tos - width*items
+    cmp r9, r8
+    jae %%ok
+    call %5 ; won't return
+    %%ok:
+    pop r9
+    pop r8
+%endmacro
+
+%macro var_stack_push 4; reg, scratch, tos, width
+    mov %2, [rel %3]
+    mov [%2], %1
+    add qword [rel %3], %4
+%endmacro
+
+%macro var_stack_pop 3 ; register, tos, width
+    sub qword [rel %2], %3
+    mov %1, [rel %2]
+    mov %1, [%1]
+%endmacro

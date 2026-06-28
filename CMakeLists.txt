@@ -28,5 +28,14 @@ file(WRITE ${CMAKE_BINARY_DIR}/dummy.c "\n")
 # Add executable from object file
 add_executable(core_forth ${OBJ_FILE} ${CMAKE_BINARY_DIR}/dummy.c) # ${CMAKE_SOURCE_DIR}/shim.c)
 
+# Copy init.forth next to the exe.
+add_custom_command(
+        TARGET core_forth POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/init.forth
+        $<TARGET_FILE_DIR:core_forth>
+        COMMENT "Copying init.forth next to executable"
+)
+
 
 target_link_libraries(core_forth PRIVATE kernel32)

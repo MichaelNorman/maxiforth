@@ -18,9 +18,17 @@ section .data
     error_input_buffer_overrun_msg db "Last character of input buffer was not white space.", 10, 0
     error_ib_overrun_hard_msg      db "Hard overrun of input buffer. Interpreter corrupted. Exit and restart.", 10, 0
     error_ib_underrun_hard_msg     db "Hard underrun of input buffer. Interpreter corrupted. Exit and restart.", 10, 0
+    error_init_fail_filename_msg   db "Failed to get init.forth filename.", 10, 0
+    error_init_bad_filename_msg    db "init.forth path malformed.", 10, 0
+    error_init_long_filename_msg   db "init.forth path too long.", 10, 0
+    error_init_file_no_exist_msg   db "Could not open init.forth.", 10, 0
+    error_fp_stack_overflow_msg    db "File pointer stack overflow: Too many nested includes.", 10, 0
+    error_fp_stack_underflow_msg   db "File pointer stack underflow: Too many pops.", 10, 0
     qstr                           db " ?", 10, 0
     okstr                          db " ok", 10, 0
-
+    init_forth_str                 db "init.forth", 0
+    file_read_str                  db "rb", 0
+    message                        db "It worked!", 10, 0
     align 16
     ; CFAs for manually coded compiled words:
     ;cfa_interpret: dq interpret_body
@@ -68,6 +76,7 @@ section .data
     cfa_pad:                    dq _pad
     cfa_bye:                    dq _bye
     cfa_pause:                  dq _pause
+    cfa_ok:                     dq _ok
 
     align 16
     static_dictionary:
@@ -81,15 +90,13 @@ section .data
     dq cfa_docol
     dq cfa_rp0
     dq cfa_rp_store
-    .begin:
-    dq cfa_lit                 ; ( -- okstraddr)
-    dq okstr
-    dq cfa_ctype               ; ( okstraddr -- < " ok" printed> )
+    .begin:             ; ( okstraddr -- < " ok" printed> )
     ; BEGIN
     dq cfa_refill              ; (
     dq cfa_0branch
     dq .fault - $
     dq cfa_interpret
+    dq cfa_ok
     ; REPEAT
     dq cfa_branch
     dq quit_body.begin - $
@@ -178,6 +185,7 @@ section .data
             ;             write wb>pad in threaded code, I'm paying the cost of just dropping the address of
             ;             word_buffer.
             dq cfa_drop         ; ( &word_buffer -- )
+            ; dq cfa_pause
             dq cfa_wb_to_pad    ; ( -- &pad <pad contains typable string representation of word_buffer> )
             dq cfa_type         ; ( &pad -- <print unknown word> )
             dq cfa_lit
@@ -190,6 +198,7 @@ section .data
             dq cfa_store        ; ( 0 &state -- <state set to interpreting> )
             dq cfa_sp0          ; ( -- &data_stack )
             dq cfa_sp_store     ; ( &data_stack -- <data stack pointer set to base> )
+            dq cfa_exit
         .drop_exit:
             dq cfa_drop
         .exit:
@@ -263,9 +272,12 @@ section .data
     regular_entry _wb_to_pad, "pad", _pad
     regular_entry _pad, "type", _type
     regular_entry _type, "bye", _bye
-    regular_entry _bye, "ctype", _ctype
+    regular_entry _bye, "msg", _message
+    regular_entry _message, "ctype", _ctype
+    regular_entry _ctype, "dovar", _dovar
+    regular_entry _dovar, "pause", _pause
     initial_latest:
-    regular_entry _ctype, "accept", _accept
+    regular_entry _pause, "accept", _accept
     initial_here:
 
 section .bss
@@ -281,6 +293,7 @@ section .bss
     return_stack          resb RETURN_STACK_SIZE * POINTER_SIZE
     file_pointer_stack    resb FILE_POINTER_STACK_SIZE * POINTER_SIZE
     fp_tos                resq 1
+    qw_scratch            resq 1
 
     ; state
     latest                resq 1
@@ -305,6 +318,12 @@ section .text
     extern fgets
     extern strlen
     extern printf
+    extern strrchr
+    extern _get_pgmptr
+    extern memcpy
+    extern strcpy
+    extern _errno
+
 main:
     enter_call
     lea DATA_TOS_REG, [rel data_stack]
@@ -323,14 +342,88 @@ main:
     lea rax, [rel initial_here]
     mov qword [rel here], rax
     mov qword [rel state], 0
+
+    ; point input at init.forth, init file adjacent to exe
+    call get_init
+    mov rcx, rax
+    ;call printf
+    ;int3
+    lea rdx, [rel file_read_str]
+    call fopen
+    test rax, rax
+    jz .init_file_no_exist
+    ; file_pointer_stack, fp_tos, qw_scratch
+    var_of file_pointer_stack, fp_tos, POINTER_SIZE, 1, FILE_POINTER_STACK_SIZE*POINTER_SIZE, error_fp_stack_overflow
+    mov r8, rax
+    var_stack_push r8, r9, fp_tos, POINTER_SIZE
+
+
     ; jump start quit loop
     lea IP_REG, [rel quit_body + POINTER_SIZE] ; skip cfa_docol
     jmp _next
-
+    
     .fault:
     leave_call ; will never get here. Should do leave_call in bye or its equivalent
     ret
+    .init_file_no_exist:
+    call _errno
+    mov eax, [rax]
+    int3
+    call error_init_file_no_exist
+get_init:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    ; get name of the exe
+    lea rcx, [rel qw_scratch]
+    call _get_pgmptr
+    test rax, rax
+    jnz .fail_filename
+    ; check the size of the returned path, and bail on 511 or larger
+    mov r10, rax
+    mov rcx, [rel qw_scratch]
+    call strlen
+    cmp rax, PAD_SIZE - 1 ; this checks not just for fit inside pad, but fit
+    jae .long_filename
 
+    ; copy name of exe into pad
+    mov rdx, [rel qw_scratch]
+    lea rcx, [rel pad]
+
+    call strcpy
+    ; find the last `\\`
+    lea rcx, [rel pad]
+    mov rdx, '\'
+    call strrchr
+    test rax, rax
+    jz .bad_filename
+    ; ensure we can fit `init.forth\0` into pad
+    mov rcx, rax
+    lea r9, [rel pad]
+    add r9, PAD_SIZE - 12 ;    |...<location>|\init.forth0|
+                          ; PAD|        <loc>|    PAD_SIZE|
+    cmp rcx, r9
+    jae .long_filename
+    ; copy our file name at that position
+    inc rcx ; we write starting one past the `\`
+    lea rdx, [rel init_forth_str]
+    mov r8, 11
+    call memcpy
+    lea rax, [rel pad]
+    .ret:
+    add rsp, 32
+    mov rsp, rbp
+    pop rbp
+    ret
+    .fail_filename:
+        call error_init_fail_filename
+        jmp .ret
+    .bad_filename:
+        call error_init_bad_filename
+        jmp .ret
+    .long_filename:
+        call error_init_long_filename
+        ; jmp .ret FALL THROUGH
 ; presumes that the address of the word buffer has been loaded into r8
 _find:
     push rbp
@@ -590,3 +683,9 @@ callable_error error_bad_base, error_bad_base_msg
 callable_error error_input_buffer_overrun, error_input_buffer_overrun_msg
 callable_error error_ib_overrun_hard, error_ib_overrun_hard_msg
 callable_error error_ib_underrun_hard, error_ib_underrun_hard_msg
+callable_error error_init_fail_filename, error_init_fail_filename_msg
+callable_error error_init_bad_filename,  error_init_bad_filename_msg
+callable_error error_init_long_filename, error_init_long_filename_msg
+callable_error error_init_file_no_exist, error_init_file_no_exist_msg
+callable_error error_fp_stack_overflow, error_fp_stack_overflow_msg
+callable_error error_fp_stack_underflow, error_fp_stack_underflow_msg

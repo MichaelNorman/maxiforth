@@ -31,6 +31,13 @@ _exit:
     stack_popq IP_REG, RETURN_TOS_REG
     jmp _next
 
+_dovar:
+    ds_overflow 1
+    mov r8, W_REG
+    add r8, POINTER_SIZE
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
 ; *********************** branching primitives *************** ;
 _branch:
     mov r8, [IP_REG]
@@ -107,6 +114,7 @@ _2dup:
     jmp _next
 
 _drop:
+    ds_underflow 1
     sub DATA_TOS_REG, CELL_SIZE
     jmp _next
 
@@ -661,11 +669,11 @@ refill_internal:
     mov rcx, INPUT_BUFFER_SIZE
     mov rax, 0
     rep stosb
-
     ; set >in to 0
     mov qword [rel input_pos], 0
     lea rdi, [rel input_buffer] ; rdi is the input_buffer base addreass for the duration of _refill
     xor rbx, rbx ; rbx is the buffer index for the duration of _refill
+    .get_input:
     ; decide from where to get our input
     mov r8, [rel fp_tos]
     lea r9, [rel file_pointer_stack]
@@ -746,13 +754,16 @@ refill_internal:
     .read_file_line:
         ; r8 contains [fp_tos]
         ; r9 contains &file_pointer_stack
-        ; assumption is that the handle in fp_tos is open in text mode
+        ; assumption is that the handle in fp_tos is open in read mode
         xor rax, rax
         lea rcx, [rel input_buffer]
         mov rdx, INPUT_BUFFER_SIZE - 1
         ; r8 already contains pointer to fp_tos
         sub r8, POINTER_SIZE
+        mov r8, [r8]
         call fgets
+        test rax, rax
+        jz .no_data
         mov rcx, rax
         call strlen
         cmp rax, INPUT_BUFFER_SIZE - 1
@@ -764,26 +775,49 @@ refill_internal:
         cmp r9b, 13 ; Okay. We'll be robust for files opened in binary mode.
         je .fgets_ok
         call error_input_buffer_overrun
-        .fgets_ok:
-        mov rcx, [rel fp_tos]
-        mov rcx, [rcx- POINTER_SIZE]
-        call feof
-        cmp rax, 0
-        je .final
+
+        .no_data:
         ; manually pop and erase
-        sub qword [rel fp_tos], POINTER_SIZE
-        mov r8, [rel fp_tos]
-        mov rcx, [r8]
+        var_uf file_pointer_stack, fp_tos, POINTER_SIZE, 1, error_fp_stack_underflow; base, tos, width, items, error
+        var_stack_pop r8, fp_tos, POINTER_SIZE
+        mov rcx, r8
         call fclose
         mov r8, [rel fp_tos]
         mov qword [r8], 0
-        ; fall through to .final because we got a line and handled cleanup
+        jmp .get_input
+        .fgets_ok:
+        mov rcx, [rel fp_tos]
+        mov rcx, [rcx - POINTER_SIZE]
+        call feof ; returns 0 if no EOF
+        cmp rax, 0
+        ;je .final fall through to .final because we got a line and handled cleanup
+
     .final:
     add rsp, 32
     mov r8, -1
     leave_call
     stack_pushq r8, DATA_TOS_REG
     ret
+
+_message:
+    sub rsp, 32
+    lea rcx, [rel message]
+    call printf
+    add rsp, 32
+    jmp _next
+    jmp _next
+
+_ok:
+    lea r8, [rel file_pointer_stack]
+    mov r9, [rel fp_tos]
+    cmp r8, r9
+    jne .done
+    lea rcx, [rel okstr]
+    sub rsp, 32
+    call printf
+    add rsp, 32
+    .done:
+    jmp _next
 
 _bye:
     jmp main.fault
