@@ -77,6 +77,7 @@ section .data
     cfa_bye:                    dq _bye
     cfa_pause:                  dq _pause
     cfa_ok:                     dq _ok
+    cfa_wbuf:                   dq push_wbuf
 
     align 16
     static_dictionary:
@@ -121,7 +122,8 @@ section .data
             dq cfa_0branch      ; ( -1 -- <continue> ) | ( 0 -- <jmp exit> )
             dq .exit - $
             ; get a word
-            dq cfa_word         ; ( -- addr )
+            dq cfa_wbuf        ; ( -- addr )
+            dq cfa_word         ; ( addr -- addr ) {Actually, it's ( -- ) but an address must be present}
             ; exit on 0-length word
             dq cfa_dup          ; ( addr -- addr addr )
             dq cfa_char_get     ; ( addr addr -- addr byte )
@@ -253,8 +255,7 @@ section .data
     regular_entry _gt, "0=", _0eq
     regular_entry _0eq, "u<", _ult
     regular_entry _ult, "base", push_base
-    regular_entry push_base, "create", _create
-    regular_entry _create, "find", _find_word
+    regular_entry push_base, "find", _find_word
     regular_entry _find_word, ",", _comma
     regular_entry _comma, "run", _run
     regular_entry _run, "rp0", _rp0
@@ -276,12 +277,13 @@ section .data
     regular_entry _message, "ctype", _ctype
     regular_entry _ctype, "dovar", _dovar
     regular_entry _dovar, "pause", _pause
+    regular_entry _pause, "wbuf", push_wbuf
     initial_latest:
-    regular_entry _pause, "accept", _accept
-    initial_here:
+    regular_entry push_wbuf, "accept", _accept
 
 section .bss
     alignb 16
+    initial_here:
     dynammic_dictionary   resb DYNA_DICT_SIZE
     dyna_dict_end:
     main_rbp              resq 1

@@ -177,6 +177,7 @@ push%1:
     jmp _next
 %endmacro
 
+pushvar _wbuf, word_buffer
 pushvar _dp, here
 pushvar _state, state
 pushvar _latest, latest
@@ -522,8 +523,6 @@ _ult:
 
 ; ********************* dictionary / compilation ****************** ;
 
-_create:
-    jmp _next
 
 _find_word:
     ds_underflow 1
@@ -539,7 +538,8 @@ _find_word:
 _comma: ; write TOS to here, increment here
     ds_underflow 1
     stack_popq r8, DATA_TOS_REG
-    mov [rel here], r8
+    mov r9, [rel here]
+    mov [r9], r8
     add qword [rel here], CELL_SIZE
     jmp _next
 
@@ -589,17 +589,20 @@ skip_space:
 
 
 ; input_buffer must terminate with `\n\0`
+; ( addr -- addr )
 _word:
-    ds_overflow 1
-
-    ; zero out word_buffer
-    lea rdi, [rel word_buffer]
-    mov rcx, 4
-    mov rax, 0
-    rep stosq
-
+    ds_underflow 1
     ; skip leading spaces
     call skip_space
+
+    mov r10, [DATA_TOS_REG - POINTER_SIZE] ; moving write address
+    push r15
+    mov r15, r10 ; stable address
+    ; zero out word_buffer
+    mov rdi, r10
+    mov rcx, 4
+    xor rax, rax
+    rep stosq
 
     ; initialize read position
     lea r8, [rel input_buffer]
@@ -607,7 +610,6 @@ _word:
     add r8, r9
 
     ; get initial write position
-    lea r10, [rel word_buffer]
     inc r10
     .word_loop:
         ; load character
@@ -625,7 +627,7 @@ _word:
         cmp r9b, 32
         je .exit
         ; if not at buffer end, write character and increment positions and counts
-        movzx r11d, byte [rel word_buffer]
+        movzx r11d, byte [r15]
         cmp r11b, 31
         ; I've already written 31 characters, which is the limit
         jae .no_write
@@ -633,7 +635,7 @@ _word:
         mov [r10], r9b
         inc r10 ; actual write position
         ; update count for word string
-        inc byte [rel word_buffer] ; actual count
+        inc byte [r15] ; actual count
         ; move the read position forward
         inc r8 ; actual read position
         jmp .word_loop
@@ -646,8 +648,7 @@ _word:
         lea r9, [rel input_buffer]
         sub r8, r9
         mov [rel input_pos], r8
-        lea r9, [rel word_buffer]
-        stack_pushq r9, DATA_TOS_REG
+        pop r15
         jmp _next
 
 _run:
