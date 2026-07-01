@@ -156,9 +156,10 @@ section .data
             dq .run_it - $
             ; compile step!
             dq cfa_comma        ; ( XT -- <compile word> )
-            ; dq cfa_branch
-            ;dq .compile_number - $ ; FALL THROUGH AS LONG AS .compile_number IS NEXT
+            dq cfa_branch
+            dq .begin - $
         .compile_number:
+            dq cfa_drop
             dq cfa_to_number    ; ( addr -- int -1 | addr 0)
             dq cfa_0branch
             dq .write_and_abort - $
@@ -442,13 +443,13 @@ _find:
     mov r9, rdx
     add r9, POINTER_SIZE ; offset for name start
     ; get ahold of the value at the address in r9
-    mov r10, [r8]
-    ; mask out flags in first byte (We could grab a byte, but and(X,1) is X, so we can just grab the word)
-    test r10, SMUDGE
+    mov r10, [r9]
+    ; mask out flags in first byte
+    test r10b, SMUDGE
     ; compare first chunk
     jnz .previous
-    and r10, 0xFFFFFFFFFFFFFF1F
-    cmp r10, [r9]
+    and r10, VALUE_MASK
+    cmp r10, [r8]
     jne .previous
     ; move to next chunk and loop naively
     add r8, POINTER_SIZE
