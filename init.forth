@@ -50,7 +50,7 @@ create : here @ 8 - here ! ' docol @ ,
 ' ! ,
 ' exit ,
 
-create immediate here @ 8 - here ! here @ ' docol @ ,
+create immediate here @ 8 - here ! ' docol @ ,
 ' latest ,
 ' @ ,
 ' lit ,

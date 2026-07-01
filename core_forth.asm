@@ -88,15 +88,15 @@ section .data
     times 27 db 0
     ; BEGIN QUIT LOOP BODY
     quit_body:
-    dq cfa_docol
-    dq cfa_rp0
-    dq cfa_rp_store
-    .begin:             ; ( okstraddr -- < " ok" printed> )
+    dq cfa_docol                 ; ( -- )
+    dq cfa_rp0                   ; ( -- rp_base )
+    dq cfa_rp_store              ; ( rp_base -- <return stack cleared> )
+    .begin:
     ; BEGIN
-    dq cfa_refill              ; (
-    dq cfa_0branch
+    dq cfa_refill              ; ( -- 0|-1 )
+    dq cfa_0branch             ; ( 0 -- <jmp fault> ) | ( -1 -- <continue> )
     dq .fault - $
-    dq cfa_interpret
+    dq cfa_interpret           ;
     dq cfa_ok
     ; REPEAT
     dq cfa_branch
@@ -156,12 +156,12 @@ section .data
             dq .run_it - $
             ; compile step!
             dq cfa_comma        ; ( XT -- <compile word> )
-            dq cfa_branch
+            dq cfa_branch       ; ( -- <jmp begin> )
             dq .begin - $
         .compile_number:
-            dq cfa_drop
+            dq cfa_drop         ; ( addr 0 -- addr )
             dq cfa_to_number    ; ( addr -- int -1 | addr 0)
-            dq cfa_0branch
+            dq cfa_0branch      ; ( addr 0 -- addr <write_and_abort> ) | (int -1 -- int <continue> )
             dq .write_and_abort - $
             dq cfa_lit          ; ( int -- int cfa_lit)
             dq cfa_lit          ; ^
@@ -169,18 +169,18 @@ section .data
             dq cfa_comma        ; (int -- <compile int> )
             dq cfa_comma        ; (int -- <compile the number>)
             ; branch .begin
-            dq cfa_branch
+            dq cfa_branch       ; ( -- <jmp begin> )
             dq .begin - $
         .run_it:
             dq cfa_run          ; ( XT -- <execute XT> )
-            dq cfa_branch
+            dq cfa_branch       ; ( -- <jmp begin> )
             dq .begin - $
         .run_number:
             dq cfa_drop
             dq cfa_to_number    ; ( addr -- int -1 | addr 0 )
             dq cfa_0branch      ; ( int -1 | addr 0 -- int <continue> | addr <jmp write and abort> )
             dq .write_and_abort - $
-            dq cfa_branch
+            dq cfa_branch       ; ( int -- int <jmp begin> )
             dq .begin - $
         .write_and_abort:
             ; ( addr -- <printed message> )
@@ -201,11 +201,11 @@ section .data
             dq cfa_store        ; ( 0 &state -- <state set to interpreting> )
             dq cfa_sp0          ; ( -- &data_stack )
             dq cfa_sp_store     ; ( &data_stack -- <data stack pointer set to base> )
-            dq cfa_exit
+            dq cfa_exit         ; ( -- <return to outer> )
         .drop_exit:
-            dq cfa_drop
+            dq cfa_drop         ; ( addr -- <fall through> )
         .exit:
-            dq cfa_exit
+            dq cfa_exit         ; ( -- <return to outer> )
     regular_entry _quit, "next", _next
     regular_entry _next, "refill", _refill
     regular_entry _refill, "docol", _docol
@@ -373,6 +373,8 @@ main:
     mov eax, [rax]
     int3
     call error_init_file_no_exist
+
+
 get_init:
     push rbp
     mov rbp, rsp
