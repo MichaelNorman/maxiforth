@@ -14,8 +14,8 @@
 %define PAD_SIZE                 512
 %define DYNA_DICT_SIZE           1 << 16
 
-%define IMMEDIATE               1 << 5
-%define SMUDGE                  1 << 6
+%define IMMEDIATE               32
+%define SMUDGE                  64
 %define VALUE_MASK              0xFFFFFFFFFFFFFF1F
 %define COMPILING               0x01
 
