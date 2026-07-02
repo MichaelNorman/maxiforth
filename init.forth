@@ -110,3 +110,8 @@ here @ word docol find drop @ ,
 ' exit ,
 immediate
 
+: [ 0 state ! ; immediate
+: ] 1 state ! ; immediate
+create 'lit ' lit ,
+: literal 'lit @ , , ; immediate
+: ['] 'lit @, , ; immediate
