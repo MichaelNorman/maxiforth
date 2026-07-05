@@ -89,6 +89,7 @@ section .data
     ; BEGIN QUIT LOOP BODY
     quit_body:
     dq cfa_docol                 ; ( -- )
+    dq 0                         ; reserved for does>
     dq cfa_rp0                   ; ( -- rp_base )
     dq cfa_rp_store              ; ( rp_base -- <return stack cleared> )
     .begin:
@@ -111,6 +112,7 @@ section .data
     times 22 db 0
     cfa_interpret:
         dq _docol
+        dq 0                    ; reserved for does>
     ; BEGIN INTERPRET BODY
     interpret_body:
         .begin:
@@ -167,7 +169,7 @@ section .data
             dq cfa_lit          ; ^
             dq cfa_comma        ; ( int cfa_lit -- int <compiile cfa_lit> )
             dq cfa_comma        ; (int -- <compile int> )
-            dq cfa_comma        ; (int -- <compile the number>)
+            ; dq cfa_comma        ; (int -- <compile the number>) TODO: check this slop
             ; branch .begin
             dq cfa_branch       ; ( -- <jmp begin> )
             dq .begin - $
@@ -213,7 +215,8 @@ section .data
     regular_entry _exit, "branch", _branch
     regular_entry _branch, "0branch", _0branch
     regular_entry _0branch, "lit", _lit
-    regular_entry _lit, "key", _key
+    regular_entry _lit, "dodoes", _do_does
+    regular_entry _do_does, "key", _key
     regular_entry _key, "emit", _emit
     regular_entry _emit, "dup", _dup
     regular_entry _dup, "2dup", _2dup
@@ -362,7 +365,7 @@ main:
 
 
     ; jump start quit loop
-    lea IP_REG, [rel quit_body + POINTER_SIZE] ; skip cfa_docol
+    lea IP_REG, [rel quit_body + 2*POINTER_SIZE] ; skip cfa_docol
     jmp _next
     
     .fault:

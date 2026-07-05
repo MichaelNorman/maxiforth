@@ -1,12 +1,12 @@
 latest @ , here @ 8 - latest ! here @ word ' 32 + here !
-here @ word docol find drop @ ,
+here @ word docol find drop @ , 0 ,
 here @ word wbuf find drop ,
 here @ word word find drop ,
 here @ word find find drop ,
 here @ word drop find drop ,
 here @ word exit find drop ,
 
-latest @ , here @ 8 - latest ! here @ word create 32 + here ! ' docol @ ,
+latest @ , here @ 8 - latest ! here @ word create 32 + here ! ' docol @ , 0 ,
 ' latest ,
 ' @ ,
 ' , ,
@@ -29,9 +29,12 @@ latest @ , here @ 8 - latest ! here @ word create 32 + here ! ' docol @ ,
 ' dovar ,
 ' @ ,
 ' , ,
+' lit ,
+0 ,
+' , ,
 ' exit ,
 
-create smudge here @ 8 - here ! ' docol @ ,
+create smudge here @ 16 - here ! ' docol @ , 0 ,
 ' latest ,
 ' @ ,
 ' lit ,
@@ -46,7 +49,7 @@ create smudge here @ 8 - here ! ' docol @ ,
 ' ! ,
 ' exit ,
 
-create unsmudge here @ 8 - here ! ' docol @ ,
+create unsmudge here @ 16 - here ! ' docol @ , 0 ,
 ' latest ,
 ' @ ,
 ' lit ,
@@ -62,13 +65,13 @@ create unsmudge here @ 8 - here ! ' docol @ ,
 ' ! ,
 ' exit ,
 
-create : here @ 8 - here ! ' docol @ ,
+create : here @ 16 - here ! ' docol @ , 0 ,
 ' create ,
 ' smudge ,
 ' here ,
 ' @ ,
 ' lit ,
-8 ,
+16 ,
 ' - ,
 ' here ,
 ' ! ,
@@ -76,13 +79,20 @@ create : here @ 8 - here ! ' docol @ ,
 ' docol ,
 ' @ ,
 ' , ,
+' here ,
+' @ ,
+' lit ,
+8 ,
+' + ,
+' here ,
+' ! ,
 ' lit ,
 1 ,
 ' state ,
 ' ! ,
 ' exit ,
 
-create immediate here @ 8 - here ! ' docol @ ,
+create immediate here @ 16 - here ! ' docol @ , 0 ,
 ' latest ,
 ' @ ,
 ' lit ,
@@ -97,8 +107,7 @@ create immediate here @ 8 - here ! ' docol @ ,
 ' c! ,
 ' exit ,
 
-create ; here @ 8 - here !
-here @ word docol find drop @ ,
+create ; here @ 16 - here ! ' docol @ , 0 ,
 ' lit ,
 0 ,
 ' state ,
@@ -112,6 +121,10 @@ immediate
 
 : [ 0 state ! ; immediate
 : ] 1 state ! ; immediate
+
 create 'lit ' lit ,
 : literal 'lit @ , , ; immediate
-: ['] 'lit @, , ; immediate
+: ['] ' 'lit @ , , ; immediate
+
+: (does>)  latest @ 40 + dup ['] dodoes @ swap ! 8 + r> swap ! ;
+: does> ['] (does>) , ; immediate

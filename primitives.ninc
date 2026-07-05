@@ -21,7 +21,7 @@ _next:
 _docol:
     rs_overflow 1
     stack_pushq IP_REG, RETURN_TOS_REG
-    lea IP_REG, [W_REG + POINTER_SIZE]
+    lea IP_REG, [W_REG + 2*POINTER_SIZE]
     jmp _next
 
 ; pre: Return stack contains pointer to outer context
@@ -34,9 +34,19 @@ _exit:
 _dovar:
     ds_overflow 1
     mov r8, W_REG
-    add r8, POINTER_SIZE
+    add r8, 2*POINTER_SIZE
     stack_pushq r8, DATA_TOS_REG
     jmp _next
+
+_do_does:
+    ds_overflow 1
+    rs_overflow 1
+    lea r8, [W_REG + 2*POINTER_SIZE] ; location of PFA that contains the data that does will use.
+    stack_pushq r8, DATA_TOS_REG            ; leave it on the data stack for safekeeping
+    stack_pushq IP_REG, RETURN_TOS_REG      ;
+    mov IP_REG, [W_REG + POINTER_SIZE]
+    jmp _next
+
 
 ; *********************** branching primitives *************** ;
 _branch:

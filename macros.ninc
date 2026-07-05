@@ -90,13 +90,14 @@
     mov rbp, [rel main_rbp]
     mov rsp, rbp
     and rsp, -0x10
+    mov qword [rel state], 0
     sub rsp, 32
     lea rcx, [rel %1]
     call printf
     add rsp, 32
     lea DATA_TOS_REG, [rel data_stack]
     lea RETURN_TOS_REG, [rel return_stack]
-    lea IP_REG, [rel label_quit + CFA_OFFSET + POINTER_SIZE] ; explicitly skip docol
+    lea IP_REG, [rel label_quit + CFA_OFFSET + 2*POINTER_SIZE] ; explicitly skip docol
     mov rbp, [rel main_rbp]
     jmp _next
 %endmacro
@@ -115,6 +116,7 @@
     db (name_len | %4), %2
     times (31 - name_len) db 0
     dq %3
+    dq 0
 %endmacro
 
 %macro regular_entry 3 ; prev word label
