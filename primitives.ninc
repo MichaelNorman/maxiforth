@@ -196,7 +196,7 @@ pushvar _base, base
 
 _input_pos:
     ds_overflow 1
-    mov r8, [rel input_pos]
+    lea r8, [rel input_pos]
     stack_pushq r8, DATA_TOS_REG
     jmp _next
 
@@ -214,6 +214,17 @@ _tib:
     stack_pushq r8, DATA_TOS_REG
     jmp _next
 
+_tib_len:
+    ds_overflow 1
+    mov r8, [rel bytes_read]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_tib_max:
+    ds_overflow 1
+    mov r8, INPUT_BUFFER_SIZE - 1
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
 
 ; ********************* memory read/write ********************* ;
 _get:
@@ -684,6 +695,8 @@ refill_internal:
     mov qword [rel input_pos], 0
     lea rdi, [rel input_buffer] ; rdi is the input_buffer base addreass for the duration of _refill
     xor rbx, rbx ; rbx is the buffer index for the duration of _refill
+    ;reset bytes_read
+    mov qword [rel bytes_read], 0
     .get_input:
     ; decide from where to get our input
     mov r8, [rel fp_tos]
@@ -730,6 +743,7 @@ refill_internal:
             call error_input_buffer_overrun
         .consume_and_loop:
             call _getch
+            ; don't do: inc qword [rel bytes_read]
             jmp .stdin_loop
         .check_del:
             call _getch
@@ -750,6 +764,7 @@ refill_internal:
             call _putch
             ; patch up input_buffer and index
             dec rbx
+            dec qword [rel bytes_read]
             mov byte [rdi + rbx], 0
             jmp .stdin_loop
         .no_backspace:
@@ -760,6 +775,7 @@ refill_internal:
             call _putch
             ; increment
             inc rbx
+            inc qword [rel bytes_read]
             jmp .stdin_loop
 
     .read_file_line:
@@ -776,6 +792,7 @@ refill_internal:
         test rax, rax
         jz .no_data
         mov rcx, rax
+        mov [rel bytes_read], rax
         call strlen
         cmp rax, INPUT_BUFFER_SIZE - 1
         jl .fgets_ok

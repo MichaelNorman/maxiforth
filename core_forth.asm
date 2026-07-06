@@ -29,6 +29,12 @@ section .data
     init_forth_str                 db "init.forth", 0
     file_read_str                  db "rb", 0
     message                        db "It worked!", 10, 0
+    splash:                        db "Welcome to amForth", 10
+                                   db "An exploratory example Forth.", 10
+                                   db "Copyright 2026, Michael K Norman ok", 10, 0
+    octal_prefix                   db "0o", 0
+    hex_prefix                     db "0x", 0
+    digits                         db "0123456789abcdef",0
     align 16
     ; CFAs for manually coded compiled words:
     ;cfa_interpret: dq interpret_body
@@ -119,7 +125,8 @@ section .data
             ; >in >= >#tib -> branch exit
             dq cfa_lit          ; (  -- INPUT_BUFFER_SIZE  )
             dq INPUT_BUFFER_SIZE
-            dq cfa_input_pos    ; ( INPUT_BUFFER_SIZE -- INPUT_BUFFER_SIZE input_pos )
+            dq cfa_input_pos    ; ( INPUT_BUFFER_SIZE -- INPUT_BUFFER_SIZE &input_pos )
+            dq cfa_get          ; ( INPUT_BUFFER_SIZE &input_pos-- INPUT_BUFFER_SIZE input_pos )
             dq cfa_gt           ; ( input_pos INPUT_BUFFER_SIZE -- -1 | 0)
             dq cfa_0branch      ; ( -1 -- <continue> ) | ( 0 -- <jmp exit> )
             dq .exit - $
@@ -266,8 +273,10 @@ section .data
     regular_entry _rp0, "sp0", _sp0
     regular_entry _sp0, "rp!", _rp_store
     regular_entry _rp_store, "sp!", _sp_store
-    regular_entry _sp_store, "#tib", _tib
-    regular_entry _tib, "word", _word
+    regular_entry _sp_store, "tib", _tib
+    regular_entry _tib, "#tib", _tib_len
+    regular_entry _tib_len, "tib|", _tib_max
+    regular_entry _tib_max, "word", _word
     regular_entry _word, "0<", _0lt
     regular_entry _0lt, "0>", _0gt
     regular_entry _0gt, ">number", _to_number
@@ -309,7 +318,11 @@ section .bss
     here                  resq 1
     state                 resq 1
     base                  resq 1
+    bytes_read            resq 1
     negative              resb 1
+    digit_buffer          resb 31
+    number_buffer         resb 33
+
 
 section .text
     global main
@@ -337,6 +350,7 @@ main:
     lea r8, [rel file_pointer_stack]
     mov [rel fp_tos], r8
     mov [rel main_rbp], rbp
+    mov qword [rel bytes_read], 0
     sub rsp, 32
     lea rax, [rel initial_latest]
     mov [rel latest], rax
@@ -363,7 +377,8 @@ main:
     mov r8, rax
     var_stack_push r8, r9, fp_tos, POINTER_SIZE
 
-
+    lea rcx, [rel splash]
+    call printf
     ; jump start quit loop
     lea IP_REG, [rel quit_body + 2*POINTER_SIZE] ; skip cfa_docol
     jmp _next

@@ -119,12 +119,39 @@ create ; here @ 16 - here ! ' docol @ , 0 ,
 ' exit ,
 immediate
 
+: \ tib tib| + >in ! ; immediate
+\ Now we can comment!
+
 : [ 0 state ! ; immediate
 : ] 1 state ! ; immediate
 
-create 'lit ' lit ,
-: literal 'lit @ , , ; immediate
-: ['] ' 'lit @ , , ; immediate
+create 'lit ' lit , \ put lit into the dictionary
+: literal 'lit @ , , ; immediate  \ bakes in [xt_lit][tos]
+: ['] ' 'lit @ , , ; immediate \ bake a word literal in: [xt_lit][xt_ticked_word]
 
 : (does>)  latest @ 40 + dup ['] dodoes @ swap ! 8 + r> swap ! ;
 : does> ['] (does>) , ; immediate
+
+: variable create 0 , ;
+: constant create , does> @ ;
+: allot here @ + here ! ;
+
+: cells 8 * ;
+
+\ if/else/then
+: if ['] 0branch , here @ 0 , ; immediate
+
+: -rot rot rot ;
+
+: else \ H_if is on the stack
+    dup \ -> H_if H_if
+    pause
+    ['] branch ,
+    here @ -rot \ -> H_hole_else H_if H_if
+    0 ,
+    here @ \ -> H_hole_else H_if H_if H_else_code
+    swap - swap ! \ H_hole_else < delta stored in H_if >
+    ; immediate
+
+: then \ H_hole_else is on the stack
+    dup here @ swap - swap ! ; immediate
