@@ -145,7 +145,6 @@ create 'lit ' lit , \ put lit into the dictionary
 
 : else \ H_if is on the stack
     dup \ -> H_if H_if
-    pause
     ['] branch ,
     here @ -rot \ -> H_hole_else H_if H_if
     0 ,
@@ -155,3 +154,39 @@ create 'lit ' lit , \ put lit into the dictionary
 
 : then \ H_hole_else is on the stack
     dup here @ swap - swap ! ; immediate
+
+\ begin/until/while/repeat
+
+\ begin pushes a marker onto the stack
+: begin here @ ; immediate
+
+\ until
+: until ['] 0branch , here @ - , ; immediate
+
+\ while
+: while
+    ['] 0branch ,
+    here @
+    0 , ; immediate
+
+\ data: address of loop start
+\       offset to loop start
+\       offset to while patch
+\       address of while patch
+: repeat              \ ( &begin &while_hole )
+    ['] branch ,
+    swap here @ - ,
+    here @ over - swap ! ; immediate
+
+
+\ do/loop/+loop/leave/i/j
+
+\ ./.s/u./.r
+
+\ strings
+
+\ files, include
+
+\ heap
+
+\ C interop
