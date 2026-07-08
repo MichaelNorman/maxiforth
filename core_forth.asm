@@ -161,7 +161,7 @@ section .data
             dq .compile_number - $
             dq cfa_0lt          ; ( XT -1|1 -- XT -1|0)
             dq cfa_0branch      ; ( XT -1|0 -- XT <continue> | XT <jmp compile_number)
-            ; jump ot run_it on immediate
+            ; jump to run_it on immediate
             dq .run_it - $
             ; compile step!
             dq cfa_comma        ; ( XT -- <compile word> )
@@ -269,6 +269,7 @@ section .data
     regular_entry push_base, "find", _find_word
     regular_entry _find_word, ",", _comma
     regular_entry _comma, "run", _run
+    regular_entry _run, "rp@", _rp
     regular_entry _run, "rp0", _rp0
     regular_entry _rp0, "sp0", _sp0
     regular_entry _sp0, "rp!", _rp_store
@@ -291,8 +292,10 @@ section .data
     regular_entry _ctype, "dovar", _dovar
     regular_entry _dovar, "pause", _pause
     regular_entry _pause, "wbuf", push_wbuf
+    regular_entry push_wbuf, "i", _i
+    regular_entry _i, "j", _j
     initial_latest:
-    regular_entry push_wbuf, "accept", _accept
+    regular_entry _j, "accept", _accept
 
 section .bss
     alignb 16

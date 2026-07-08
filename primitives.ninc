@@ -854,3 +854,22 @@ _pause:
     int3
     jmp _next
 
+; ******************** loop variables *************************** ;
+_i:
+    rs_underflow 1
+    ds_overflow 1
+    mov r8, [RETURN_TOS_REG - POINTER_SIZE]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _exit
+
+_j:
+    rs_underflow 3
+    ds_overflow 1
+    mov r8, [RETURN_TOS_REG - 3*POINTER_SIZE]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _exit
+
+_rp:
+    ds_overflow 1
+    stack_pushq RETURN_TOS_REG, DATA_TOS_REG
+    jmp _next

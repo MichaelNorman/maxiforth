@@ -137,6 +137,7 @@ create 'lit ' lit , \ put lit into the dictionary
 : allot here @ + here ! ;
 
 : cells 8 * ;
+: cell 8 ;
 
 \ if/else/then
 : if ['] 0branch , here @ 0 , ; immediate
@@ -157,22 +158,15 @@ create 'lit ' lit , \ put lit into the dictionary
 
 \ begin/until/while/repeat
 
-\ begin pushes a marker onto the stack
 : begin here @ ; immediate
 
-\ until
 : until ['] 0branch , here @ - , ; immediate
 
-\ while
 : while
     ['] 0branch ,
     here @
     0 , ; immediate
 
-\ data: address of loop start
-\       offset to loop start
-\       offset to while patch
-\       address of while patch
 : repeat              \ ( &begin &while_hole )
     ['] branch ,
     swap here @ - ,
@@ -180,6 +174,36 @@ create 'lit ' lit , \ put lit into the dictionary
 
 
 \ do/loop/+loop/leave/i/j
+
+\ do
+\ limit index do .... loop/+loop
+: do swap  >r >r here @; immediate
+
+\ +loop (&do step)
+\ d_old = index - limit        : i rp@ cell 2 * - @ -
+\ d_new = index - limit + step : i + rp@ cell 2 * - @ -
+\ xor(d_old, d_new)            : xor
+\ result < 0                   : 0<
+
+: limit rp@ cell 2 * - @ ;
+: iaddr rp@ cell - ;
+: +loop                  \ ( &do step )
+    dup                  \ ( &do step -- &do step step )
+    limit i swap -       \ ( &do step step -- &do step step signed_delta1)
+    dup rot +            \ ( &do step step -- &do step signed_delta1 signed_delta 2)
+    xor                  \ ( &do step signed_delta1 signed_delta 2 -- &do step pos_or_neg )
+    0<                   \ ( &do step pos_or_neg -- &do step <jmp &do or continue> )
+    swap here @ swap -   \ ( &do step -- step do_offset )
+    ['] 0branch ,        \ ( -- )
+    ,                    \ ( step do_offset -- step <do_offset compiled> )
+    i + iaddr ! ;        \ ( step -- <i incremented> )
+    immediate
+
+\ loop
+: loop 1 +loop ;
+
+\ leave
+
 
 \ ./.s/u./.r
 
