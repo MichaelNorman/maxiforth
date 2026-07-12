@@ -405,8 +405,8 @@ _divmod:
     mov rax, [DATA_TOS_REG - 2*CELL_SIZE]
     cqo
     idiv qword [DATA_TOS_REG - CELL_SIZE]
-    mov [DATA_TOS_REG - 2*CELL_SIZE], rdx
-    mov [DATA_TOS_REG - CELL_SIZE], rax
+    mov [DATA_TOS_REG - 2*CELL_SIZE], rdx ; remainder
+    mov [DATA_TOS_REG - CELL_SIZE], rax   ; quotient
     jmp _next
 
 _mod:
@@ -555,12 +555,13 @@ _ult:
 _ne:
     ds_underflow 2
     mov r8, qword [DATA_TOS_REG - 2*CELL_SIZE]
-    cmp qword [DATA_TOS_REG - CELL_SIZE], r8
+    sub DATA_TOS_REG, CELL_SIZE
+    cmp qword [DATA_TOS_REG], r8
     jne .true
-    mov qword [DATA_TOS_REG - 2*CELL_SIZE], 0
+    mov qword [DATA_TOS_REG - CELL_SIZE], 0
     jmp _next
     .true:
-    mov qword [DATA_TOS_REG - 2*CELL_SIZE], -1
+    mov qword [DATA_TOS_REG - CELL_SIZE], -1
     jmp _next
 
 ; ********************* dictionary / compilation ****************** ;

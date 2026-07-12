@@ -132,8 +132,8 @@ create 'lit ' lit , \ put lit into the dictionary
 : (does>)  latest @ 40 + dup ['] dodoes @ swap ! 8 + r> swap ! ;
 : does> ['] (does>) , ; immediate
 
-: variable create 0 , ;
-: constant create , does> @ ;
+: var create 0 , ;
+: const create , does> @ ;
 : allot here + dp ! ;
 
 : cells 8 * ;
@@ -178,8 +178,8 @@ create 'lit ' lit , \ put lit into the dictionary
 \ tib  top of input buffer
 \ tib| number of bytes read
 
--1 constant true
-0 constant false
+-1 const true
+0 const false
 
 : pib tib >in @ + ;
 : ib-end tib tib| + 1 - ; \ pointer to end of buffer
@@ -204,9 +204,11 @@ create 'lit ' lit , \ put lit into the dictionary
     here dup 0 ,
     begin next-rchar dup 32 = while drop repeat \ skip leading spaces
     begin
-        dup 34 = if \ hit the bare quote
-            drop 0 c, \ null terminator
-            dup 1 cells + here swap - swap ! \ write length to start cell
+        dup 34 = if        \ hit the bare quote
+            drop 0 c,      \ null terminator
+            dup 1 cells +  \ point at start of string
+            here 1 -       \ point to end of string and don't count the trailing null
+            swap - swap !  \ write length to start cell
             false
         else
             true
@@ -218,11 +220,68 @@ create 'lit ' lit , \ put lit into the dictionary
     repeat
 ;
 
-\ ./.s/u./.r
-\ .
-\ Design: The core algorithm takes an integer and divides by base, stacking the ASCII for the remainder
-\         into a reversed buffer, ensuring that each value is positive before converting.
+: nl 10 emit ;
 
+\ ./.s/u./.r
+
+\ .
+
+var num-str 24 allot \  var reserves 8. 24 allot allows for [length (8 bytes)][chars (23 bytes)][0 (1 byte)]
+var rev-ptr
+
+\ ( -- addr <next addr will be `addr 1 -` >)
+: pnext-digit rev-ptr dup @ swap dup @ 1 - swap ! ;
+
+\ ( -- addr < of last valid character position > )
+: end-digit num-str 30 + ; \ `num-str end-digit` gives a pointer to the last digit
+
+var neg
+\ ( val -- val { neg is true if val 0 <, otherwise false} )
+: set-neg dup 0< neg ! ;
+
+\ ( -- base_val )
+: get-base base @ ;
+
+\ digit-string gives you the address of the string directly
+var digit-string
+here 1 cells - dp !
+i" 0123456789abcdef"
+sp@ 1 cells - sp! \ we already know where this lives.
+
+\ fetch the ASCII for the digit, regardless of base (up to 16)
+: digit-for digit-string 1 cells + + c@ ;
+
+\ Design: The core algorithm takes an integer and divides by base, stacking the ASCII for the remainder
+\         into the number string until the quotient is 0, writes the sign if present, writes the count, and
+\         copies the string down into the start slot of the number.
+\ ( num -- )
+: fill-num
+    end-digit rev-ptr !                       \ ( num -- <rev-ptr now points to the last valid digit slot> )
+    rev-ptr @ 1 + 0 swap c!                   \ ( num -- <write 0 beyond last valid digit spot> )
+    set-neg                                   \ ( num -- num <neg is set> )
+    begin
+        dup 0 <>                              \ ( num -- quotient <while quotient isn't 0...> )
+    while                                     \ num is quotient, trivially so before the first division
+        get-base /mod swap                    \ ( quotient -- quotient remainder )
+        neg @ if -1 * then                    \ ( quotient remainder -- quotient |remainder| )
+        digit-for pnext-digit c!              \ ( quotient remainder -- quotient <ascii for digit written> )
+    repeat
+    drop                                      \ ( quotient -- <leftover quotient dropped> )
+    neg @ if
+        pnext-digit dup 45 swap c!            \ ( -- start-ptr <`-` written> )
+    else
+        rev-ptr @ 1 +                         \ ( -- start-ptr <no `-` written> )
+    then
+    end-digit swap - 1 + dup num-str !        \ ( start-ptr -- num-chars <num-chars stored in num-str> )
+    1 +                                       \ ( num-chars -- str-len)
+    \ going for ( src dest count -- )
+    dup end-digit 2 + swap - swap             \ ( str-len -- src str-len )
+    num-str 1 cells +                         \ ( src str-len -- src str-len dest )
+    swap                                      \ ( src str-len dest -- src dest str-len )
+    cmove                                     \ ( src dest str-len -- <string representation copied down> )
+;
+
+: . fill-num num-str nl type ;
 
 \ files, include
 
@@ -231,4 +290,3 @@ create 'lit ' lit , \ put lit into the dictionary
 \ C interop
 
 \ other words
-: allot dp +! ;
