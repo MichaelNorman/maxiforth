@@ -235,8 +235,9 @@ section .data
     regular_entry _to_return, "r>", _to_data
     regular_entry _to_data, "sp@", _get_sp
     regular_entry _get_sp, "rp@", _get_rp
-    regular_entry _get_rp, "here", push_dp
-    regular_entry push_dp, "state", push_state
+    regular_entry _get_rp, "dp", push_dp
+    regular_entry push_dp, "here", _here
+    regular_entry _here, "state", push_state
     regular_entry push_state, "latest", push_latest
     regular_entry push_latest, ">in", _input_pos
     regular_entry _input_pos, "source", _input_buffer
@@ -263,12 +264,14 @@ section .data
     regular_entry _lte, "=", _eq
     regular_entry _eq, ">=", _gte
     regular_entry _gte, ">", _gt
-    regular_entry _gt, "0=", _0eq
+    regular_entry _gt, "<>", _ne
+    regular_entry _ne, "0=", _0eq
     regular_entry _0eq, "u<", _ult
     regular_entry _ult, "base", push_base
     regular_entry push_base, "find", _find_word
     regular_entry _find_word, ",", _comma
-    regular_entry _comma, "run", _run
+    regular_entry _comma, "c,", _char_comma
+    regular_entry _char_comma, "run", _run
     regular_entry _run, "rp@", _rp
     regular_entry _run, "rp0", _rp0
     regular_entry _rp0, "sp0", _sp0
@@ -292,10 +295,8 @@ section .data
     regular_entry _ctype, "dovar", _dovar
     regular_entry _dovar, "pause", _pause
     regular_entry _pause, "wbuf", push_wbuf
-    regular_entry push_wbuf, "i", _i
-    regular_entry _i, "j", _j
     initial_latest:
-    regular_entry _j, "accept", _accept
+    regular_entry push_wbuf, "accept", _accept
 
 section .bss
     alignb 16

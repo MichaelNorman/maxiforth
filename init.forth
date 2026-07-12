@@ -1,29 +1,29 @@
-latest @ , here @ 8 - latest ! here @ word ' 32 + here !
-here @ word docol find drop @ , 0 ,
-here @ word wbuf find drop ,
-here @ word word find drop ,
-here @ word find find drop ,
-here @ word drop find drop ,
-here @ word exit find drop ,
+latest @ , here 8 - latest ! here word ' 32 + dp !
+here word docol find drop @ , 0 ,
+here word wbuf find drop ,
+here word word find drop ,
+here word find find drop ,
+here word drop find drop ,
+here word exit find drop ,
 
-latest @ , here @ 8 - latest ! here @ word create 32 + here ! ' docol @ , 0 ,
+latest @ , here 8 - latest ! here word create 32 + dp ! ' docol @ , 0 ,
 ' latest ,
 ' @ ,
 ' , ,
-' here ,
+' dp ,
 ' @ ,
 ' lit ,
 8 ,
 ' - ,
 ' latest ,
 ' ! ,
-' here ,
+' dp ,
 ' @ ,
 ' word ,
 ' lit ,
 32 ,
 ' + ,
-' here ,
+' dp ,
 ' ! ,
 ' lit ,
 ' dovar ,
@@ -34,7 +34,7 @@ latest @ , here @ 8 - latest ! here @ word create 32 + here ! ' docol @ , 0 ,
 ' , ,
 ' exit ,
 
-create smudge here @ 16 - here ! ' docol @ , 0 ,
+create smudge here 16 - dp ! ' docol @ , 0 ,
 ' latest ,
 ' @ ,
 ' lit ,
@@ -49,7 +49,7 @@ create smudge here @ 16 - here ! ' docol @ , 0 ,
 ' ! ,
 ' exit ,
 
-create unsmudge here @ 16 - here ! ' docol @ , 0 ,
+create unsmudge here 16 - dp ! ' docol @ , 0 ,
 ' latest ,
 ' @ ,
 ' lit ,
@@ -65,26 +65,26 @@ create unsmudge here @ 16 - here ! ' docol @ , 0 ,
 ' ! ,
 ' exit ,
 
-create : here @ 16 - here ! ' docol @ , 0 ,
+create : here 16 - dp ! ' docol @ , 0 ,
 ' create ,
 ' smudge ,
-' here ,
+' dp ,
 ' @ ,
 ' lit ,
 16 ,
 ' - ,
-' here ,
+' dp ,
 ' ! ,
 ' lit ,
 ' docol ,
 ' @ ,
 ' , ,
-' here ,
+' dp ,
 ' @ ,
 ' lit ,
 8 ,
 ' + ,
-' here ,
+' dp ,
 ' ! ,
 ' lit ,
 1 ,
@@ -92,7 +92,7 @@ create : here @ 16 - here ! ' docol @ , 0 ,
 ' ! ,
 ' exit ,
 
-create immediate here @ 16 - here ! ' docol @ , 0 ,
+create immediate here 16 - dp ! ' docol @ , 0 ,
 ' latest ,
 ' @ ,
 ' lit ,
@@ -107,7 +107,7 @@ create immediate here @ 16 - here ! ' docol @ , 0 ,
 ' c! ,
 ' exit ,
 
-create ; here @ 16 - here ! ' docol @ , 0 ,
+create ; here 16 - dp ! ' docol @ , 0 ,
 ' lit ,
 0 ,
 ' state ,
@@ -134,83 +134,101 @@ create 'lit ' lit , \ put lit into the dictionary
 
 : variable create 0 , ;
 : constant create , does> @ ;
-: allot here @ + here ! ;
+: allot here + dp ! ;
 
 : cells 8 * ;
 : cell 8 ;
 
 \ if/else/then
-: if ['] 0branch , here @ 0 , ; immediate
+: if ['] 0branch , here 0 , ; immediate
 
 : -rot rot rot ;
 
 : else \ H_if is on the stack
     dup \ -> H_if H_if
     ['] branch ,
-    here @ -rot \ -> H_hole_else H_if H_if
+    here -rot \ -> H_hole_else H_if H_if
     0 ,
-    here @ \ -> H_hole_else H_if H_if H_else_code
+    here \ -> H_hole_else H_if H_if H_else_code
     swap - swap ! \ H_hole_else < delta stored in H_if >
-    ; immediate
+; immediate
 
 : then \ H_hole_else is on the stack
-    dup here @ swap - swap ! ; immediate
+    dup here swap - swap ! ; immediate
 
 \ begin/until/while/repeat
 
-: begin here @ ; immediate
+: begin here ; immediate
 
-: until ['] 0branch , here @ - , ; immediate
+: until ['] 0branch , here - , ; immediate
 
 : while
     ['] 0branch ,
-    here @
+    here
     0 , ; immediate
 
 : repeat              \ ( &begin &while_hole )
     ['] branch ,
-    swap here @ - ,
-    here @ over - swap ! ; immediate
-
-
-\ do/loop/+loop/leave/i/j
-
-\ do
-\ limit index do .... loop/+loop
-: do swap  >r >r here @; immediate
-
-\ +loop (&do step)
-\ d_old = index - limit        : i rp@ cell 2 * - @ -
-\ d_new = index - limit + step : i + rp@ cell 2 * - @ -
-\ xor(d_old, d_new)            : xor
-\ result < 0                   : 0<
-
-: limit rp@ cell 2 * - @ ;
-: iaddr rp@ cell - ;
-: +loop                  \ ( &do step )
-    dup                  \ ( &do step -- &do step step )
-    limit i swap -       \ ( &do step step -- &do step step signed_delta1)
-    dup rot +            \ ( &do step step -- &do step signed_delta1 signed_delta 2)
-    xor                  \ ( &do step signed_delta1 signed_delta 2 -- &do step pos_or_neg )
-    0<                   \ ( &do step pos_or_neg -- &do step <jmp &do or continue> )
-    swap here @ swap -   \ ( &do step -- step do_offset )
-    ['] 0branch ,        \ ( -- )
-    ,                    \ ( step do_offset -- step <do_offset compiled> )
-    i + iaddr ! ;        \ ( step -- <i incremented> )
-    immediate
-
-\ loop
-: loop 1 +loop ;
-
-\ leave
-
-
-\ ./.s/u./.r
+    swap here - ,
+    here over - swap ! ; immediate
 
 \ strings
+
+\ >in  index into tib
+\ tib  top of input buffer
+\ tib| number of bytes read
+
+-1 constant true
+0 constant false
+
+: pib tib >in @ + ;
+: ib-end tib tib| + 1 - ; \ pointer to end of buffer
+: at-end pib ib-end >= ;
+
+: valid-refill begin at-end while refill repeat ; \ skip empty lines from input
+
+: next-rchar
+    valid-refill \ Either we were okay to start with or we are at the start of a new buffer
+    pib c@  1 >in +!
+;
+
+: resolve-char
+    next-rchar
+    dup 110 = if drop 10 exit then
+    dup 116 = if drop 9  exit then
+    dup 34  = if exit then
+    dup 92  = if exit then
+;
+
+: i" \ runtime string, as opposed to a compile-time string
+    here dup 0 ,
+    begin next-rchar dup 32 = while drop repeat \ skip leading spaces
+    begin
+        dup 34 = if \ hit the bare quote
+            drop 0 c, \ null terminator
+            dup 1 cells + here swap - swap ! \ write length to start cell
+            false
+        else
+            true
+        then
+    while
+        dup 92 = if drop resolve-char then \ ensures room for escapee
+        c,
+        next-rchar
+    repeat
+;
+
+\ ./.s/u./.r
+\ .
+\ Design: The core algorithm takes an integer and divides by base, stacking the ASCII for the remainder
+\         into a reversed buffer, ensuring that each value is positive before converting.
+
 
 \ files, include
 
 \ heap
 
 \ C interop
+
+\ other words
+: allot dp +! ;

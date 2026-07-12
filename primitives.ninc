@@ -193,6 +193,11 @@ pushvar _state, state
 pushvar _latest, latest
 pushvar _base, base
 
+_here:
+    ds_overflow 1
+    mov r8, [rel here]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
 
 _input_pos:
     ds_overflow 1
@@ -415,13 +420,18 @@ _mod:
 
 _plus_store:
     ds_underflow 2
-    mov r8, [DATA_TOS_REG - CELL_SIZE]
-    mov r9, [DATA_TOS_REG - 2*CELL_SIZE]
+    mov r8, [DATA_TOS_REG - CELL_SIZE] ; addr
+    mov r9, [DATA_TOS_REG - 2*CELL_SIZE] ; n
+    add qword [r8], r9
+    sub DATA_TOS_REG, 2*CELL_SIZE
     jmp _next
 
 _sub_store:
-    ds_underflow 1
-    dec qword [DATA_TOS_REG - CELL_SIZE]
+    ds_underflow 2
+    mov r8, [DATA_TOS_REG - CELL_SIZE] ; addr
+    mov r9, [DATA_TOS_REG - 2*CELL_SIZE] ; n
+    sub qword [r8], r9
+    sub DATA_TOS_REG, 2*CELL_SIZE
     jmp _next
 
 _lshift:
@@ -542,6 +552,17 @@ _ult:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
     jmp _next
 
+_ne:
+    ds_underflow 2
+    mov r8, qword [DATA_TOS_REG - 2*CELL_SIZE]
+    cmp qword [DATA_TOS_REG - CELL_SIZE], r8
+    jne .true
+    mov qword [DATA_TOS_REG - 2*CELL_SIZE], 0
+    jmp _next
+    .true:
+    mov qword [DATA_TOS_REG - 2*CELL_SIZE], -1
+    jmp _next
+
 ; ********************* dictionary / compilation ****************** ;
 
 
@@ -562,6 +583,14 @@ _comma: ; write TOS to here, increment here
     mov r9, [rel here]
     mov [r9], r8
     add qword [rel here], CELL_SIZE
+    jmp _next
+
+_char_comma:
+    ds_underflow 1
+    stack_popq r8, DATA_TOS_REG
+    mov r9, [rel here]
+    mov byte [r9], r8b
+    add qword [rel here], 1
     jmp _next
 
 ; (addr -- <value> <success>)
@@ -682,6 +711,7 @@ _refill:
     jmp _next
 
 ; refill input buffer from source
+; TODO: bytes_read disaagrees with the buffer length because it ignores the trailing newline-ish characters
 refill_internal:
     enter_call
     sub rsp, 32
@@ -854,20 +884,7 @@ _pause:
     int3
     jmp _next
 
-; ******************** loop variables *************************** ;
-_i:
-    rs_underflow 1
-    ds_overflow 1
-    mov r8, [RETURN_TOS_REG - POINTER_SIZE]
-    stack_pushq r8, DATA_TOS_REG
-    jmp _exit
-
-_j:
-    rs_underflow 3
-    ds_overflow 1
-    mov r8, [RETURN_TOS_REG - 3*POINTER_SIZE]
-    stack_pushq r8, DATA_TOS_REG
-    jmp _exit
+; *********************** internals ************************* ;
 
 _rp:
     ds_overflow 1
