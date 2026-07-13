@@ -241,6 +241,9 @@ var neg
 
 \ ( -- base_val )
 : get-base base @ ;
+: >hex 16 base ! ;
+: >dec 10 base ! ;
+: >oct 8 base ! ;
 
 \ digit-string gives you the address of the string directly
 var digit-string
@@ -256,17 +259,24 @@ sp@ 1 cells - sp! \ we already know where this lives.
 \         copies the string down into the start slot of the number.
 \ ( num -- )
 : fill-num
+    dup
     end-digit rev-ptr !                       \ ( num -- <rev-ptr now points to the last valid digit slot> )
     rev-ptr @ 1 + 0 swap c!                   \ ( num -- <write 0 beyond last valid digit spot> )
     set-neg                                   \ ( num -- num <neg is set> )
-    begin
-        dup 0 <>                              \ ( num -- quotient <while quotient isn't 0...> )
-    while                                     \ num is quotient, trivially so before the first division
-        get-base /mod swap                    \ ( quotient -- quotient remainder )
-        neg @ if -1 * then                    \ ( quotient remainder -- quotient |remainder| )
-        digit-for pnext-digit c!              \ ( quotient remainder -- quotient <ascii for digit written> )
-    repeat
-    drop                                      \ ( quotient -- <leftover quotient dropped> )
+
+    dup 0 = if
+        digit-for pnext-digit c!               \ ( num -- <character for digit stored> )
+    else
+        begin
+            dup 0 <>                              \ ( num -- quotient <while quotient isn't 0...> )
+        while                                     \ num is quotient, trivially so before the first division
+            get-base /mod swap                    \ ( quotient -- quotient remainder )
+            neg @ if -1 * then                    \ ( quotient remainder -- quotient |remainder| )
+            digit-for pnext-digit c!              \ ( quotient remainder -- quotient <ascii for digit written> )
+        repeat
+        drop                                      \ ( quotient -- <leftover quotient dropped> )
+    then
+
     neg @ if
         pnext-digit dup 45 swap c!            \ ( -- start-ptr <`-` written> )
     else
@@ -281,9 +291,37 @@ sp@ 1 cells - sp! \ we already know where this lives.
     cmove                                     \ ( src dest str-len -- <string representation copied down> )
 ;
 
-: . fill-num num-str nl type ;
+: . fill-num drop num-str nl type ;
+: ._ fill-num drop num-str type ;
+
+\ .s
+: sp 32 emit ;
+: .sp fill-num drop num-str type sp ;
+
+var stackp
+: .s sp0 stackp !
+    nl
+    60 emit
+    sp@ sp0 - 3 >> ._
+    62 emit
+    sp
+    sp@
+    begin
+        dup stackp @ swap <
+    while
+        stackp @ @ .sp stackp @ 1 cells + stackp !
+    repeat
+    drop
+;
 
 \ files, include
+
+: cell+ 1 cells + ;
+: mode: cell+ constant ;
+s" rt" mode: m_rt
+
+\ include
+
 
 \ heap
 

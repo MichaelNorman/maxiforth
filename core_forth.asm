@@ -215,7 +215,17 @@ section .data
             dq cfa_drop         ; ( addr -- <fall through> )
         .exit:
             dq cfa_exit         ; ( -- <return to outer> )
-    regular_entry _quit, "next", _next
+    regular_entry _quit, "fopen", _fopen
+    regular_entry _fopen, "fclose", _fclose
+    regular_entry _fclose, "fread", _fread
+    regular_entry _fread, "fwrite", _fwrite
+    regular_entry _fwrite, "fputs", _fputs
+    regular_entry _fputs, "fseek", _fseek
+    regular_entry _fseek, "ftell", _ftell
+    regular_entry _ftell, "feof", _feof
+    regular_entry _feof, "ferror", _ferror
+    regular_entry _ferror,"clearerr", _clearerr
+    regular_entry _clearerr, "next", _next
     regular_entry _next, "refill", _refill
     regular_entry _refill, "docol", _docol
     regular_entry _docol, "exit", _exit
@@ -335,10 +345,15 @@ section .text
     extern _putch
     extern fopen
     extern fclose
-    extern ferr
+    extern ferror
     extern feof
     extern fread
     extern fgets
+    extern fwrite
+    extern fputs
+    extern ftell
+    extern fseek
+    extern clearerr
     extern strlen
     extern printf
     extern strrchr

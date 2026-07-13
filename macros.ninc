@@ -163,3 +163,21 @@
     mov %1, [rel %2]
     mov %1, [%1]
 %endmacro
+
+%macro c_reg_stash 0
+    push rcx
+    push rdx
+    push r8
+    push r9
+    push r10
+    push r11
+%endmacro
+
+%macro c_reg_restore 0
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rdx
+    pop rcx
+%endmacro

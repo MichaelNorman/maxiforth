@@ -436,15 +436,15 @@ _sub_store:
 
 _lshift:
     ds_underflow 2
-    movzx ecx, byte [DATA_TOS_REG - 2*CELL_SIZE]
+    movzx ecx, byte [DATA_TOS_REG - CELL_SIZE]
     shl qword [DATA_TOS_REG - 2*CELL_SIZE], cl
     sub DATA_TOS_REG, CELL_SIZE
     jmp _next
 
 _rshift:
     ds_underflow 2
-    movzx ecx, byte [DATA_TOS_REG - 2*CELL_SIZE] ; cl
-    shr qword [DATA_TOS_REG - CELL_SIZE], cl
+    movzx ecx, byte [DATA_TOS_REG - CELL_SIZE] ; cl
+    shr qword [DATA_TOS_REG - 2*CELL_SIZE], cl
     sub DATA_TOS_REG, CELL_SIZE
     jmp _next
 
@@ -890,4 +890,128 @@ _pause:
 _rp:
     ds_overflow 1
     stack_pushq RETURN_TOS_REG, DATA_TOS_REG
+    jmp _next
+
+; ********************** file I/O ************************** ;
+
+_fopen:
+    ; FILE *
+    ; const char * path
+    ; const char * mode
+    ds_underflow 2
+    ; c_reg_stash
+    stack_popq rdx, DATA_TOS_REG
+    stack_popq rcx, DATA_TOS_REG
+    call fopen
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
+    jmp _next
+
+; ( ... fpointer -- flag ) close a file: fclose
+_fclose:
+    ds_underflow 1
+    ; c_reg_stash
+    stack_popq rcx, DATA_TOS_REG
+    call fclose
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
+    jmp _next
+
+; ( ... pbuffer size count fpointer -- count ) read count values with specified size into pbuffer from fpointer,
+;                                             puts number of items read onto data_stack: fread
+; NOTE: sizes and counts are 32-bit values, so you need to sext32 or uext32 them properly before calling
+_fread:
+    ds_underflow 4
+    ; c_reg_stash
+    stack_popq r9, DATA_TOS_REG
+    stack_popq r8, DATA_TOS_REG
+    stack_popq rdx, DATA_TOS_REG
+    stack_popq rcx, DATA_TOS_REG
+    call fread
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
+    jmp _next
+
+; ( ... pbuffer size count fpointer -- count ) write count values with specified size from pbuffer into fpointer,
+;                                             puts number of items written onto data_stack: fread
+; NOTE: sizes and counts are 32-bit values, so you need to sext32 or uext32 them properly before calling
+_fwrite:
+    ds_underflow 4
+    ; c_reg_stash
+    stack_popq r9, DATA_TOS_REG
+    stack_popq r8, DATA_TOS_REG
+    stack_popq rdx, DATA_TOS_REG
+    stack_popq rcx, DATA_TOS_REG
+    call fwrite
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
+    jmp _next
+
+; ( ... cpointer fpointer -- size ) writes the null-terminated string at cpointer into fpointer, returns the number
+;                                   of bytes written: fputs
+_fputs:
+    ds_underflow 4
+    ; c_reg_stash
+    stack_popq rdx, DATA_TOS_REG
+    stack_popq rcx, DATA_TOS_REG
+    call fputs
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
+    jmp _next
+
+; ( ... fpointer offset whence -- success ) change the read/write position in fpointer by offset relative to
+;                                           whence code {SEEK_SET|0: begginning SEEK_CUR|1: current position
+;                                           SEEK_END|2: end of file, put the success(0) or failure(nz) on the
+;                                           data_stack: fseek
+
+; NOTE: sizes and counts are 32-bit values, so you need to sext32 or uext32 them properly before calling
+_fseek:
+    ds_underflow 4
+    ; c_reg_stash
+    stack_popq r8, DATA_TOS_REG
+    stack_popq rdx, DATA_TOS_REG
+    stack_popq rcx, DATA_TOS_REG
+    call fseek
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
+    jmp _next
+
+; ( ... fpointer -- offset ) find the current read/write location in fpointer: ftell
+_ftell:
+    ds_underflow 1
+    ; c_reg_stash
+    stack_popq rcx, DATA_TOS_REG
+    call ftell
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
+    jmp _next
+
+; ( ... fpointer -- eof) pushes 0 to data stack if read past EOF, otherwise pushes nonzero: feof
+_feof:
+    ds_underflow 1
+    ; c_reg_stash
+    stack_popq rcx, DATA_TOS_REG
+    call fseek
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
+    jmp _next
+
+; ( ... fpointer -- err ) pushes nonzero onto the data stack if any I/O error has occurred, otherwise pushes 0: ferror
+_ferror:
+    ds_underflow 1
+    ; c_reg_stash
+    stack_popq rcx, DATA_TOS_REG
+    call ferror
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
+    jmp _next
+
+; ( ... fpointer -- ... ) clears errors and eof on fpointer: clearerr
+_clearerr:
+    ds_underflow 1
+    ; c_reg_stash
+    stack_popq rcx, DATA_TOS_REG
+    call clearerr
+    stack_pushq rax, DATA_TOS_REG
+    ; c_reg_restore
     jmp _next
