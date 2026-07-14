@@ -215,7 +215,11 @@ section .data
             dq cfa_drop         ; ( addr -- <fall through> )
         .exit:
             dq cfa_exit         ; ( -- <return to outer> )
-    regular_entry _quit, "fopen", _fopen
+    regular_entry _quit, "abort", _abort
+    regular_entry _abort, "fps", _fps
+    regular_entry _fps, "fptos", _fp_tos
+    regular_entry _fp_tos, "szfps", _fps_size
+    regular_entry _fps_size, "fopen", _fopen
     regular_entry _fopen, "fclose", _fclose
     regular_entry _fclose, "fread", _fread
     regular_entry _fread, "fwrite", _fwrite
@@ -398,6 +402,7 @@ main:
 
     lea rcx, [rel splash]
     call printf
+    .start:
     ; jump start quit loop
     lea IP_REG, [rel quit_body + 2*POINTER_SIZE] ; skip cfa_docol
     jmp _next

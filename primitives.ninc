@@ -892,6 +892,14 @@ _rp:
     stack_pushq RETURN_TOS_REG, DATA_TOS_REG
     jmp _next
 
+_abort:
+    lea DATA_TOS_REG, [rel data_stack]
+    lea RETURN_TOS_REG, [rel return_stack]
+    lea r8, [rel file_pointer_stack]
+    mov [rel fp_tos], r8
+    mov qword [rel state], 0
+    jmp main.start
+
 ; ********************** file I/O ************************** ;
 
 _fopen:
@@ -1014,4 +1022,22 @@ _clearerr:
     call clearerr
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
+    jmp _next
+
+_fps:
+    ds_overflow 1
+    lea r8, [rel file_pointer_stack]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_fp_tos:
+    ds_overflow 1
+    lea r8, [rel fp_tos]
+    stack_pushq r8, DATA_TOS_REG
+    jmp _next
+
+_fps_size:
+    ds_overflow 1
+    mov r8, FILE_POINTER_STACK_SIZE * POINTER_SIZE
+    stack_pushq r8, DATA_TOS_REG
     jmp _next

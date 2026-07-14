@@ -317,11 +317,42 @@ var stackp
 \ files, include
 
 : cell+ 1 cells + ;
-: mode: cell+ constant ;
-s" rt" mode: m_rt
+: mode: cell+ const ;
+i" rt" mode: m_rt
+i" rb" mode: m_rb
 
 \ include
 
+
+
+i" \nFile pointer stack overflow.\n" const fpov-msg
+
+: on-space >in @ c@ 32 = ;
+: inc-in >in @ 1 + >in ! ;
+: skip-space begin on-space while inc-in repeat ;
+: not-null >in @ c@ 0 <> ;
+: find-null begin not-null while inc-in repeat >in ;
+
+: write-0-char dup 0 swap c! ;
+\ ( end-addr -- <trailing CR LF, if present, removed, null-terminated> )
+: trim-end
+    begin
+        dup c@ 0=
+    while
+        1 -
+    repeat
+    dup c@ 10 = if write-0 1 - then
+    dup c@ 13 = if write-0 1 - then
+    drop
+;
+
+: prepare-name skip-space dup find-null trim-end ;
+
+: open-include m_rb fopen ;
+: ?fps-full fptos @ fps @ szfps + >= if fpov-msg type abort then ;
+
+: push-handle ?fps-full ; / TODO: finish!
+: include prepare-name open-include push-handle ;
 
 \ heap
 
