@@ -154,7 +154,8 @@ create 'lit ' lit , \ put lit into the dictionary
 ; immediate
 
 : then \ H_hole_else is on the stack
-    dup here swap - swap ! ; immediate
+    dup here swap - swap !
+; immediate
 
 \ begin/until/while/repeat
 
@@ -165,12 +166,14 @@ create 'lit ' lit , \ put lit into the dictionary
 : while
     ['] 0branch ,
     here
-    0 , ; immediate
+    0 ,
+; immediate
 
 : repeat              \ ( &begin &while_hole )
     ['] branch ,
     swap here - ,
-    here over - swap ! ; immediate
+    here over - swap !
+; immediate
 
 \ strings
 
@@ -265,16 +268,16 @@ sp@ 1 cells - sp! \ we already know where this lives.
     set-neg                                   \ ( num -- num <neg is set> )
 
     dup 0 = if
-        digit-for pnext-digit c!               \ ( num -- <character for digit stored> )
+        digit-for pnext-digit c!              \ ( num -- <character for digit stored> )
     else
         begin
-            dup 0 <>                              \ ( num -- quotient <while quotient isn't 0...> )
-        while                                     \ num is quotient, trivially so before the first division
-            get-base /mod swap                    \ ( quotient -- quotient remainder )
-            neg @ if -1 * then                    \ ( quotient remainder -- quotient |remainder| )
-            digit-for pnext-digit c!              \ ( quotient remainder -- quotient <ascii for digit written> )
+            dup 0 <>                          \ ( num -- quotient <while quotient isn't 0...> )
+        while                                 \ num is quotient, trivially so before the first division
+            get-base /mod swap                \ ( quotient -- quotient remainder )
+            neg @ if -1 * then                \ ( quotient remainder -- quotient |remainder| )
+            digit-for pnext-digit c!          \ ( quotient remainder -- quotient <ascii for digit written> )
         repeat
-        drop                                      \ ( quotient -- <leftover quotient dropped> )
+        drop                                  \ ( quotient -- <leftover quotient dropped> )
     then
 
     neg @ if
@@ -299,6 +302,7 @@ sp@ 1 cells - sp! \ we already know where this lives.
 : .sp fill-num drop num-str type sp ;
 
 var stackp
+
 : .s sp0 stackp !
     nl
     60 emit
@@ -314,7 +318,7 @@ var stackp
     drop
 ;
 
-\ files, include
+\ files
 
 : cell+ 1 cells + ;
 : mode: cell+ const ;
@@ -322,8 +326,6 @@ i" rt" mode: m_rt
 i" rb" mode: m_rb
 
 \ include
-
-
 
 i" \nFile pointer stack overflow.\n" const fpov-msg
 
@@ -341,8 +343,8 @@ i" \nFile pointer stack overflow.\n" const fpov-msg
     while
         1 -
     repeat
-    dup c@ 10 = if write-0 1 - then
-    dup c@ 13 = if write-0 1 - then
+    dup c@ 10 = if write-0-char 1 - then
+    dup c@ 13 = if write-0-char 1 - then
     drop
 ;
 
@@ -351,11 +353,9 @@ i" \nFile pointer stack overflow.\n" const fpov-msg
 : open-include m_rb fopen ;
 : ?fps-full fptos @ fps @ szfps + >= if fpov-msg type abort then ;
 
-: push-handle ?fps-full ; / TODO: finish!
+: push-handle ?fps-full fptos @ ! fptos @ 1 cells + fptos ! ;
 : include prepare-name open-include push-handle ;
 
-\ heap
+\ heap (primitives)
 
 \ C interop
-
-\ other words

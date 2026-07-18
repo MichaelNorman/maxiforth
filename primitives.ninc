@@ -1041,3 +1041,34 @@ _fps_size:
     mov r8, FILE_POINTER_STACK_SIZE * POINTER_SIZE
     stack_pushq r8, DATA_TOS_REG
     jmp _next
+
+; ***************************** heap management **************************** ;
+
+_malloc:
+    ds_underflow 1
+    stack_popq rcx, DATA_TOS_REG
+    call malloc
+    stack_pushq rax, DATA_TOS_REG ; ptr
+    jmp _next
+
+_calloc:
+    ds_underflow 2
+    stack_popq rdx, DATA_TOS_REG ; size
+    stack_popq rcx, DATA_TOS_REG ; num
+    call malloc
+    stack_pushq rax, DATA_TOS_REG ;ptr
+    jmp _next
+
+_realloc:
+    ds_underflow 2
+    stack_popq rdx, DATA_TOS_REG ; size
+    stack_popq rcx, DATA_TOS_REG ; ptr
+    call malloc
+    stack_pushq rax, DATA_TOS_REG ; ptr
+    jmp _next
+
+_free:
+    ds_underflow 1
+    stack_popq rcx, DATA_TOS_REG ; ptr
+    call malloc
+    jmp _next
