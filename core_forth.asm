@@ -308,7 +308,7 @@ section .data
     regular_entry _message, "ctype", _ctype
     regular_entry _ctype, "dovar", _dovar
     regular_entry _dovar, "pause", _pause
-    regular_entry _pause, "mallod", _malloc
+    regular_entry _pause, "malloc", _malloc
     regular_entry _malloc, "calloc", _calloc
     regular_entry _calloc, "realloc", _realloc
     regular_entry _realloc, "free", _free
@@ -701,7 +701,7 @@ dec_convert:
     mov rax, -1
     ret
 
-oct_convert:1
+oct_convert:
     xor rdx, rdx
     .loop:
         mov r10b, [r8] ; the digit character to transform into a value
