@@ -6,7 +6,8 @@ here word find find drop ,
 here word drop find drop ,
 here word exit find drop ,
 
-latest @ , here 8 - latest ! here word create 32 + dp ! ' docol @ , 0 ,
+latest @ , here 8 - latest ! here word create 32 + dp !
+' docol @ , 0 ,
 ' latest ,
 ' @ ,
 ' , ,
@@ -17,8 +18,7 @@ latest @ , here 8 - latest ! here word create 32 + dp ! ' docol @ , 0 ,
 ' - ,
 ' latest ,
 ' ! ,
-' dp ,
-' @ ,
+' here ,
 ' word ,
 ' lit ,
 32 ,
@@ -356,6 +356,3 @@ i" \nFile pointer stack overflow.\n" const fpov-msg
 : push-handle ?fps-full fptos @ ! fptos @ 1 cells + fptos ! ;
 : include prepare-name open-include push-handle ;
 
-\ heap (primitives)
-
-\ C interop

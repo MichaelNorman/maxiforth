@@ -9,7 +9,7 @@
 
 
 cmake_minimum_required(VERSION 3.25)
-project(ForthASM C)  # <- "C" required to set a linker language
+project(amForth C)  # <- "C" required to set a linker language
 
 set(SRC_FILE ${CMAKE_SOURCE_DIR}/core_forth.asm)
 set(OBJ_FILE ${CMAKE_BINARY_DIR}/core_forth.obj)
