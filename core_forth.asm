@@ -31,7 +31,7 @@ section .data
     message                        db "It worked!", 10, 0
     splash:                        db "Welcome to amForth", 10
                                    db "An exploratory example Forth.", 10
-                                   db "Copyright 2026, Michael K Norman ok", 10, 0
+                                   db "Copyright 2026, Michael K Norman", 0
     octal_prefix                   db "0o", 0
     hex_prefix                     db "0x", 0
     digits                         db "0123456789abcdef",0
@@ -293,7 +293,7 @@ section .data
     regular_entry _rp_store, "sp!", _sp_store
     regular_entry _sp_store, "tib", _tib
     regular_entry _tib, "#tib", _tib_len
-    regular_entry _tib_len, "tib|", _tib_max
+    regular_entry _tib_len, "mib", _tib_max
     regular_entry _tib_max, "word", _word
     regular_entry _word, "0<", _0lt
     regular_entry _0lt, "0>", _0gt

@@ -841,6 +841,16 @@ refill_internal:
         var_stack_pop r8, fp_tos, POINTER_SIZE
         mov rcx, r8
         call fclose
+        ; print ok message if at base
+        lea r8, [rel file_pointer_stack]
+        mov r9, [rel fp_tos]
+        cmp r8, r9
+        jne .not_base
+        lea rcx, [rel okstr]
+        sub rsp, 32
+        call printf
+        add rsp, 32
+        .not_base:
         mov r8, [rel fp_tos]
         mov qword [r8], 0
         jmp .get_input
