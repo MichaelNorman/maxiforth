@@ -350,7 +350,7 @@ i" \nFile pointer stack overflow.\n" const fpov-msg
     drop
 ;
 
-: prepare-name skip-space pib dup find-null trim-end ;
+: prepare-name skip-space pib find-null trim-end ;
 
 : open-include m_rb fopen ;
 
