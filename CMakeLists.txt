@@ -3,7 +3,7 @@
 
 #set(CMAKE_C_STANDARD 11)
 
-# add_executable(min_forth main.c)
+# add_executable(maxiForth main.c)
 
 #################################
 
