@@ -248,8 +248,7 @@ section .data
     regular_entry _rot, ">r", _to_return
     regular_entry _to_return, "r>", _to_data
     regular_entry _to_data, "sp@", _get_sp
-    regular_entry _get_sp, "rp@", _get_rp
-    regular_entry _get_rp, "dp", push_dp
+    regular_entry _get_sp, "dp", push_dp
     regular_entry push_dp, "here", _here
     regular_entry _here, "state", push_state
     regular_entry push_state, "latest", push_latest

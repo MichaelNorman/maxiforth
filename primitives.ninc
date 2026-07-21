@@ -173,7 +173,7 @@ _get_sp:
     stack_pushq DATA_TOS_REG, DATA_TOS_REG
     jmp _next
 
-_get_rp:
+_rp:
     rs_overflow 1
     stack_pushq RETURN_TOS_REG, RETURN_TOS_REG
     jmp _next
@@ -893,13 +893,6 @@ _bye:
 
 _pause:
     int3
-    jmp _next
-
-; *********************** internals ************************* ;
-
-_rp:
-    ds_overflow 1
-    stack_pushq RETURN_TOS_REG, DATA_TOS_REG
     jmp _next
 
 _abort:

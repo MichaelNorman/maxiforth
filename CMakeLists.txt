@@ -37,5 +37,5 @@ add_custom_command(
         COMMENT "Copying init.forth next to executable"
 )
 
-
+# needed for linking
 target_link_libraries(maxiForth PRIVATE kernel32)
