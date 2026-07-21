@@ -25,7 +25,7 @@ var message !<ENTER> ok
 greeting message !<ENTER> ok
 message @ cr type<ENTER>
 Hello, World! ok
-
+bye
 ```
 Don't let the trivial example fool you. You can write applications in maxiForth.
 
