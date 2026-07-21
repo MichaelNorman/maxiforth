@@ -9,10 +9,10 @@
 
 
 cmake_minimum_required(VERSION 3.25)
-project(amForth C)  # <- "C" required to set a linker language
+project(maxiForth C)  # <- "C" required to set a linker language
 
-set(SRC_FILE ${CMAKE_SOURCE_DIR}/core_forth.asm)
-set(OBJ_FILE ${CMAKE_BINARY_DIR}/core_forth.obj)
+set(SRC_FILE ${CMAKE_SOURCE_DIR}/maxiForth.asm)
+set(OBJ_FILE ${CMAKE_BINARY_DIR}/maxiForth.obj)
 
 # Build the object file from NASM source
 add_custom_command(
@@ -26,16 +26,16 @@ add_custom_command(
 file(WRITE ${CMAKE_BINARY_DIR}/dummy.c "\n")
 
 # Add executable from object file
-add_executable(core_forth ${OBJ_FILE} ${CMAKE_BINARY_DIR}/dummy.c) # ${CMAKE_SOURCE_DIR}/shim.c)
+add_executable(maxiForth ${OBJ_FILE} ${CMAKE_BINARY_DIR}/dummy.c) # ${CMAKE_SOURCE_DIR}/shim.c)
 
 # Copy init.forth next to the exe.
 add_custom_command(
-        TARGET core_forth POST_BUILD
+        TARGET maxiForth POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/init.forth
-        $<TARGET_FILE_DIR:core_forth>
+        $<TARGET_FILE_DIR:maxiForth>
         COMMENT "Copying init.forth next to executable"
 )
 
 
-target_link_libraries(core_forth PRIVATE kernel32)
+target_link_libraries(maxiForth PRIVATE kernel32)
