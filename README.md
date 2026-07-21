@@ -21,7 +21,7 @@ maxiForth responds to a line of input with "` ok\n`." Here's a basic session:
 i" Hello, world!" const greeting<ENTER> ok
 greeting cr type<ENTER>
 Hello, world! ok
-var message !<ENTER> ok
+var message <ENTER> ok
 greeting message !<ENTER> ok
 message @ cr type<ENTER>
 Hello, World! ok
@@ -29,15 +29,15 @@ bye
 ```
 Don't let the trivial example fool you. You can write applications in maxiForth.
 
-maxiForth is a prototype for an unconventional indirect threaded code (ITC) Forth that strives to see how
+maxiForth is a prototype for an idiosyncratic indirect threaded code (ITC) Forth that strives to see how
 much one can do with the  smallest amount of assembly that is (reasonably) possible. Forths are little
 languages that are (mostly) intended to be (mostly) hand-built from assembly, bootstrapping up to a real
 "high level" programming language and giving you access to your "system." Typically, that system is a new
 piece of hardware on which you want to do things like, well, whatever hardware testers do. maxiForth sits
-inside your operating system, for better or for worse, rather than atop bare metal. Your OS is maxiForth's
-"system." maxiForth is close to "complete," which is a hard word to define for a language that you're
-intended to develop on your own, add new words in assembly when you have to, and can add new words in Forth
-essentially at will.
+on top of your operating system like any other program, for better or for worse, rather than atop bare metal.
+Your OS is maxiForth's "system." maxiForth is close to "complete," which is a hard word to define for a 
+language that you're  intended to develop on your own, add new words in assembly when you have to, and can
+add new words in Forth at will.
 
 I have been pragmatic in maxiForth's development. For example, I haven't been above calling out to `printf`
 to get things going, and the interpreter IO is accomplished with `_getch` and `_putch` at the command line,
@@ -47,28 +47,30 @@ runtime environment.
 ### Some useful words
 #### include <file>
 
-`include` treats the rest of its input line as a file name and opens a file. When it fails, it does so silently,
-except to complain if you've nested your `include`d files too deeply. As in 17 or more deep, which ought to be
-enough. It's up to you to get your file names right.
+`include` treats the rest of its input line as a file name and opens and interprets that file. If it fails to open
+the file, it does so silently, except to complain if you've nested your `include`d files too deeply. As in 16 or more
+levels, which ought to be enough. It's up to you to get your file names right.
 
 #### swap, dup, rot, nip, tuck, 2dup, and the rest of the stack bestiary
 
 These, and possibly a few more, stack manipulation words let you duplicate stack entries, swap the top 2, rotate
-the top 3, and so on. Type "Forth stack words" into any search engine, or ask an LLM about them, and you'll
-get an adequate explanation. If not, you can muscle up and read the source. It's not that bad.
+the top 3, and so on. The point is that things get laid down into the stack in LIFO order and get consumed by default,
+so you might need to make some copies and rearrange things a bit.  Type "Forth stack words" into any search engine,
+or ask an LLM about them, and you'll get an adequate explanation. If not, you can muscle up and read the source.  It's
+not that bad.
 
 #### pause
 
 This is a handy one for debugging. Drop it into a misbehaving word definition and start maxiForth in debug mode.
 `pause` just issues an `int3`, suspending execution. Many a bug in maxiForth was tracked down by bisecting with
-`pause`!
+`pause`! (You can step through execution, but there's a bit of state that Forth knows about but the debugger doesn't.)
 
 ### The big ones: `:` and `;`
 
 Forths are both interpreters and compilers. Juxtaposition is composition, so you can cut programs up pretty much
 any way you like. Forth takes advantage of this with the `:` and `;` words, which start and finish compilation,
-respectively, of new words. Forth has no native way to square integers. If this is a useful thing to have for your
-problem, you can do:
+respectively, of new words. Forth has no native way to square integers, for example. If this is a useful thing to
+have for your problem, you can do:
 
 ```
 : sq dup * ;
@@ -100,7 +102,7 @@ write a hook for a `custom.forth` file, but I don't think Chuck Moore would appr
 
 ## Prerequisites
 
-I wrote and built this Forth on CLion from JetBrains Software, which you can download free
+I wrote and built this Forth on CLion from JetBrains. You can download Clion free
 for non-commercial use. You can find documentation, download links, and installation instructions
 here: [JetBrains CLion](https://www.jetbrains.com/clion/). If you can tolerate the command line,
 and if you can tolerate Microsoft, you can also use VS Code. Building and debugging will be slightly
