@@ -4,7 +4,7 @@
 
 ## Name
 
-"maxiForth" is the name of this project. The MIT License covers the code, not these names. Please
+"maxiForth" is the name of this project. The MIT License covers the code, not this name. Please
 don't publish forks, mirrors, repackagings, or derivative courses under
 the "maxiForth" name, or in any way that suggests they
 are the original or are endorsed by the author. Rename your fork and you're
