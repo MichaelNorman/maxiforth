@@ -12,6 +12,23 @@ free to do as the license allows.
 
 ## Overview
 
+maxiForth responds to a line of input with "` ok\n`." Here's a basic session:
+```
+3 5 +<ENTER> ok
+.<ENTER>
+8 ok
+: cr 10 emit ;<ENTER> ok
+i" Hello, world!" const greeting<ENTER> ok
+greeting cr type<ENTER>
+Hello, world! ok
+var message !<ENTER> ok
+greeting message !<ENTER> ok
+message @ cr type<ENTER>
+Hello, World! ok
+
+```
+Don't let the trivial example fool you. You can write applications in maxiForth.
+
 maxiForth is a prototype for an unconventional indirect threaded code (ITC) Forth that strives to see how
 much one can do with the  smallest amount of assembly that is (reasonably) possible. Forths are little
 languages that are (mostly) intended to be (mostly) hand-built from assembly, bootstrapping up to a real
@@ -68,7 +85,7 @@ Let there be light, or at least a few sparks. With that ability to compose funct
 ### Some missing things, coming soon
 
 * Compile-time strings. The current string word is `i"`, for "interpreter string." Trying to use `i"` in a colon
-  definition will not produce the expeceted results.
+  definition will not produce the expected results.
 * DLL loading and discovery. This is the big one. Your system includes DLLs. You are a serious Forth programmer. You
   should be able to load a DLL up, figure out how it works, and start defining words to make calls.
 * Dynamic dictionary sizing and bounds checks. Currently, you can define yourself right off the end of the dictionary,
