@@ -262,11 +262,13 @@ sp@ 1 cells - sp! \ we already know where this lives.
 \         copies the string down into the start slot of the number.
 \ ( num -- )
 : fill-num
+    \ prep-buffer
     dup
     end-digit rev-ptr !                       \ ( num -- <rev-ptr now points to the last valid digit slot> )
     rev-ptr @ 1 + 0 swap c!                   \ ( num -- <write 0 beyond last valid digit spot> )
     set-neg                                   \ ( num -- num <neg is set> )
 
+    \ acc-digits
     dup 0 = if
         digit-for pnext-digit c!              \ ( num -- <character for digit stored> )
     else
@@ -280,14 +282,15 @@ sp@ 1 cells - sp! \ we already know where this lives.
         drop                                  \ ( quotient -- <leftover quotient dropped> )
     then
 
+    \ handle-sign
     neg @ if
         pnext-digit dup 45 swap c!            \ ( -- start-ptr <`-` written> )
     else
         rev-ptr @ 1 +                         \ ( -- start-ptr <no `-` written> )
     then
+
     end-digit swap - 1 + dup num-str !        \ ( start-ptr -- num-chars <num-chars stored in num-str> )
     1 +                                       \ ( num-chars -- str-len)
-    \ going for ( src dest count -- )
     dup end-digit 2 + swap - swap             \ ( str-len -- src str-len )
     num-str 1 cells +                         \ ( src str-len -- src str-len dest )
     swap                                      \ ( src str-len dest -- src dest str-len )

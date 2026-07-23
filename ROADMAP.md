@@ -5,11 +5,17 @@ maxiForth is a prototype for firstForth, the Forth that will accompany a book an
 development has a natural end: When it's complete enough that firstForth can be developed so that its commits follow the
 lesson/book plan by commit. firstForth, and therefore maxiForth, are meant to be languages for "getting work done" on
 your computer, a sort of thinking curmudgeon's Python. Certain things need to be demonstrated in maxiForth to meet that
-goal. One user story involvew wanting to do text processing and not wanting to compile an entire regex library into your
-Forth. The tool to reach for is DLL-loading. The user compiles an existing regex library to a DLL, then discovers,
-loads, and uses it to accomplish their text processing tasks. There's actually a family of user stories there. Using the
-Clay layout library to do window layout. And so on. Another story involves programming windows, which will require a
-facility for receiving callbacks.
+goal.
+
+Here are the user stories that I think get maxiForth across this finish line:
+* Text processing and without compiling an entire regex library into your Forth. The tool to reach for is DLL-loading to
+discover, loads and use the libary.
+* Using the Clay layout library to do window layout.
+* Programming Windows natively.
+
+Text processing will, in the scenario laid out, would require DLL loading, but likely not callbacks. While Clay can be
+compiled right into Forth, it still needs to call back into your code for a few things, text measurement among them. The
+Windows programming story involves bots DLLs and heayv usage of callbacks.
 
 The natural tension here is that the design philosophy of Forth, or at least of Chuck Moore, is against "general
 purpose" languages. I personally don't currently have the problem of receiving callbacks from Windows. The justification
@@ -61,7 +67,25 @@ are:
 5. In the return-to-C word: pop the handler's result off the stack into the ABI return register. Write updated PSP/RSP
    into the sahred save area, pop the callee-saved registers, and `ret`
 
-I'm pretty sure most of that is right.
+### 4) `do...leave...loop/+loop`
+
+#### Status
+maxiForth relies on `begin...while/until...repeat` for all of its looping. Certain calculations require a bit of
+trickery if you want to exit early.
+
+#### Feature(s)
+Basic `do...loop/+loop` is fairly straightforward, accepting a limit range and, in the case of a `+loop` a step.
+Internally, `loop` pushes `1` for the step and just calls `+loop`, a convenience that saves the programmer some typing.
+The real trickery comes in when you try to `leave` a loop. You need to thread bread crumbs through the memory locations
+that `leave` will use at run time to break out, which means writing the address of the previous `leave` into the address
+"hole" that is waiting for the final offset. Then the compile step has to walk those addresses, destructively writing
+offsets to the end of the loop at each step before jumping to the previous `leave`.
+
+I almost forgot! the complication of having `+loop`, which can walk *down* past a *lower bound*, is that it all but
+necessitates implementing a sign crossing check on a difference, rather than a straight limit comparison. It's a pain. I
+have to look up how to do it each time. This is why I'm putting it off until I either need it or can no longer put up
+with the embarrassment. I am not easily embarrassed, at least not in this case.
 
 ## Conclusion
-This work will happen in parallel with the book, YT series, Linux port, and other efforts.
+This work, and the rewrite and Linux port, will happen in parallel with the book, YT series, Linux port, and other
+efforts.
