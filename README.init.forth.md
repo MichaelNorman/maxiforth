@@ -20,7 +20,7 @@ One of the first goals of `init.forth` is to create the compilation words `:` an
 
 ```[*prev(8)][mask(0.3)][len(0.5)][char[31]][CFA(8)][0(8)]...```
 
-The bits in parentheses are bytes and fractional bytes (bits). So, `8` represents a 64-bit word, and `0.3` represents three bits. In words, a dictionary entry is a 64-bit pointer to the previous entry, three bits of masks, five bits specifying the length of a 31-byte (248-byte) string, said string, a 64-bit code field address (CFA), and 64-bits of 0s. Semantically, it's a previous pointer, a masked word-length word string, an address of the action to take for the word, and a reserved word for future use. The title of this section is **The Format of a Forth Word**, and I've only given you the header, so far. The rest of a word goes:
+The bits in parentheses are bytes and fractional bytes (bits). So, `8` represents a 64-bit word, and `0.3` represents three bits. In words, a dictionary entry is a 64-bit pointer to the previous entry, three bits of masks, five bits specifying the length of a 31-byte (248-bit) string, said string, a 64-bit code field address (CFA), and 64-bits of 0s. Semantically, it's a previous pointer, a masked word-length word string, an address of the action to take for the word, and a reserved word for future use. The title of this section is **The Format of a Forth Word**, and I've only given you the header, so far. The rest of a word goes:
 
 ```...[P(64)][P(64)]...```
 
