@@ -26,8 +26,7 @@ latest @ , here 8 - latest ! here word create 32 + dp !
 ' dp ,
 ' ! ,
 ' lit ,
-' dovar ,
-' @ ,
+' dovar @ ,
 ' , ,
 ' lit ,
 0 ,
@@ -332,7 +331,6 @@ i" rb" mode: m_rb
 
 i" \nFile pointer stack overflow.\n" const fpov-msg
 
-
 : on-space pib c@ 32 = ;
 : inc-in 1 >in +! ;
 : skip-space begin on-space while inc-in repeat ;
@@ -361,4 +359,13 @@ i" \nFile pointer stack overflow.\n" const fpov-msg
 : push-handle ?fps-full fptos @ ! 1 cells fptos +! ;
 
 : include prepare-name open-include push-handle ;
+
+\ heap strings: "
+\ Heap strings will be runtime strings only, just like i"-strings
+\ " will take a variable and assign its address to the variable
+\ ptr-free will do two things: abort if the variable contains 0, or free and write 0
+
+i" Double-free detected! Aborting..." const dbl-free-err
+: cr 10 emit ;
+: ptr-free dup @ 0= if cr dbl-free-err type abort then dup @ free 0 @ ;
 
