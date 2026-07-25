@@ -6,7 +6,15 @@
 
 As we pass through the various stages of documenting `init.forth`, we'll actually develop a very good understanding of the dictionary layout, how Forth words are run, and especially the layout of a Forth word in memory. It is often said that the data are more important than the code, for if you are shown code without data, you'll have no idea what's going on. However, if you're shown the data and it is explained to you, you'll be in such a good position that you could almost write the code yourself. Inasmuch as one of my goals is to get as many people as possible to experience the enlightenment of writing a Forth of their own from scratch, the lack of the `\` word in `init.forth` is a most welcome serendipity!
 
-## The Format of a Forth Word
+## Interpretation and compilation
+
+Forth is both an interpreter and a compiler; you build programs by defining words at the same interactive prompt that you run them from. This differs from other languages, where there is usually only an interpreter or a compiler. In C, for example, you write source files and call the compiler and linker to produce an executable. Compilers could output machine code directly, but they ofen output assembly code, which then gets "assembled" into the final program. This Forth, and ones that you build if you take up the challenge, will be built in assembly, so you'll get to experience the write-compile divide directly. In Forth, you compile directly with the `:` and `;` words right at the interpreter prompt.
+
+On the other end of the spectrum are interpreted languages like Python, JavaScript, BASIC, and others. In these languages, your code is run by a program called an interpreter. In a pure interpreter, your code is broken up into its parts as the interpreter sees the parts and immediately translated into something the computer can run. There is no separate compiler to turn your text into a separate binary. In Forth, you enter words at the Forth prompt or write Forth into files and point the interpreter at them with `include`. In either case, your words are looked up by the interpreter and run.
+
+One of the first goals of `init.forth` is to create the compilation words `:` and `'`.
+
+## The format of a forth word
 
 `init.forth` begins rather cryptically with a line that lays items down directly and quite literally into memory using, among others, the `,` word. The items being laid down are in the format of the header of a Forth word. This format looks like:
 
@@ -18,7 +26,7 @@ The bits in parentheses are bytes and fractional bytes (bits). So, `8` represent
 
 We take "P" to stand for "parameter." This region of the word is the parameter field, and it begins at the parameter field address (PFA). The parameter field is left mysterious, but it's often just a list of execution tokens (XTs) that point to the CFAs of other words, along with their data. That understanding will get you pretty far.
 
-## The Behavior of Some Important First Words
+## The behavior of some important first words
 
 ### `latest`
 Puts the address of the variable that holds the address the newest word onto the stack. `latest` is a special memory ara for Forth: It represents the head of the dictionary, the hook where word lookup starts.
@@ -148,8 +156,159 @@ The only other notable thing about the definition of `create`, other than that i
 
 Before going to the next section, though, stop and marvel at how powerful `'` was for us, and how much additional power it bought us by making it so much easier to implement `create`. It's something else!
 
-## `create` Some Things
+## `create` some things
 
-## `:`, `immediate`, and `;`
+We're getting more for free now than we used to. We can just `create` a word to get an entry that we only have to modify slightly for it to function as the header for a word instead of a header for a variable. That's a real improvement from having to tick in and comma everything we wanted in a header piece by piece. We're not done, though. We're still on our way to creating our compilation words.
 
-## Let there be light: The Line Comment Word, `\`
+When thinking about Forth, the concept of the simplest thing that could possibly work should come up quite a bit. In fact, our next efforts will make one constraint of this simplicity apparent: Forth is single-pass, and that pass is the current place in the input. This means that if you want to build a helper word, it has to be built temporally and lexically before the word that runs the helper. (There are ways around this, but we would have to build them, and they wouldn't be the simplest thing that could possibly work.)
+
+`:` and `;` are best implemented with some helper words, so `init.forth` delays gratification a little more for a cleaner result. Words are hidden from dictionary lookup by "smudging" them, which essentially amounts to setting a flag on the word that the runtime recognizes. This gives rise to the need for the `smudge` and `unsmudge` words. The last word we'll need before we write `:` and `;`&mdash;technically, it's not needed until right before `;` is defined)&mdash;is `immediate`. An immediate word always runs when it is encountered, even during compilation. (You can still tick it because `'` does the lookup step without running it.) Because `;` is encountered during compilation, it needs to be immediate so that it can take over compilation and wrap things up.
+
+Here's the listing for the definitions of `smudge` and `unsmudge`:
+
+```
+create smudge here 16 - dp ! ' docol @ , 0 ,
+' latest ,
+' @ ,
+' lit ,
+8 ,
+' + ,
+' dup ,
+' @ ,
+' lit ,
+64 ,
+' or ,
+' swap ,
+' ! ,
+' exit ,
+
+create unsmudge here 16 - dp ! ' docol @ , 0 ,
+' latest ,
+' @ ,
+' lit ,
+8 ,
+' + ,
+' dup ,
+' @ ,
+' lit ,
+64 ,
+' invert ,
+' and ,
+' swap ,
+' ! ,
+' exit ,
+```
+
+Look at `create` go! Instead of having to lay down the header item by item, we do `create <thing>`, followed by some arithmetic on `HERE`, `here 16 - dp !`, finally followed by laying down the CFA of `docol` where the CFA of `dovar` was with `' docol @`. Rather than go through the hassle of advancing over the `0` that create laid down, the easiest thing is just to lay it down again with ` 0 ,`. This line is only a little bit shorter than the manual line from earlier, but it's a little bit easier to read.
+
+The bodies of `smudge` and `unsmudge` lay down a swath of values identical between them, so it's worthwile to understand them once. Those values are: `latest @ lit 8 + dup @ lit 64`. You should have enough practice now to be able to see that that duplicates the address 8 bytes beyond the `[*prev]` field of the word most recently laid down, replace the copy of that address with what lives there, and puts 64 onto the stack.
+
+64 is a bit cryptic, but it's just the smudge bit. `or swap !` stores whatever was already there back onto itself, but with the smudge bit set. `invert and swap !` writes it back with the smudge bit cleared.
+
+With those explained, we can turn our attention to `immediate`, which also operates on the last word and sets the flag that makes it immediate. Here is the code that defines it:
+
+```
+create immediate here 16 - dp ! ' docol @ , 0 ,
+' latest ,
+' @ ,
+' lit ,
+8 ,
+' + ,
+' dup ,
+' c@ ,
+' lit ,
+32 ,
+' or ,
+' swap ,
+' c! ,
+' exit ,
+```
+
+Our hero `create` is doing its thing, we're doing our `docol` CFA replacement thing, and then the start of `immediate`'s body looks an awful lot like the ones from `smudge`/`unsmudge`, except we're using `c@` instead of `@`. `c@` just writes a single byte instead of 8 bytes. Clearly, the immediate flag is 32, and `c!` must store a character, rather than a word. You're reading Forth like it's your first language!
+
+## `:` and `;`
+
+Finally, the time is ripe! Like so much so far in this bootstrapping process, the new will seem strangely familiar. Diving right in with the listing for the definition of `:`:
+
+```
+create : here 16 - dp ! ' docol @ , 0 ,
+' create ,
+' smudge ,
+' dp ,
+' @ ,
+' lit ,
+16 ,
+' - ,
+' dp ,
+' ! ,
+' lit ,
+' docol ,
+' @ ,
+' , ,
+' dp ,
+' @ ,
+' lit ,
+8 ,
+' + ,
+' dp ,
+' ! ,
+' lit ,
+1 ,
+' state ,
+' ! ,
+' exit ,
+```
+
+The header is laid down with the familiar `create`-and-replace mechanic we've already seen. Let's take a look at the body that is being laid down for `:`:
+```
+create smudge dp @ lit 16 - dp ! lit docol @ , dp @ lit 8 + dp ! lit 1 state ! exit
+```
+
+Fragments of that should seem familiar. `dp @ lit 16 - dp !` is just colon-word-ese for `here 16 - dp ! docol @ , 0,`, except that it opts for walking past the `dovar` reserved data field over replacing it with zero. After that, it simple sets `state` to 1. 0 is the interpreting state and 1 is the compiling state. Much of what `:` does is setup and teardown for machinery that's implemented in the outer loop. In `maxiForth`, that machinery is implemented in hand-laid CFAs. After `:` is run, the Forth runtime is in the "compiling" state.
+
+This leaves only `;`, our first immediate word:
+
+```
+create ; here 16 - dp ! ' docol @ , 0 ,
+' lit ,
+0 ,
+' state ,
+' ! ,
+' lit ,
+' exit ,
+' , ,
+' unsmudge ,
+' exit ,
+immediate
+```
+
+Say goodbye to hand-laid headers. After `'` is defined, we have all the machinery we need. (We hardly knew ye!) The body that is laid down for `;` is just: `lit 0 state ! lit CFA(exit) , unsmudge exit`. The `CFA(exit)` was a bit of a cheat, but that's essentially what `' exit ,` lays down. All that `;` is doing is putting us back into the interpreting state, unsmudging the word so it's ready for lookup, and `exit`ing. We then call `immediate` to make it so `;` runs when the runtime is in the compiling state.
+
+## The line comment word: `\`
+
+You're not ready for the next two lines of code in `init.forth`. Well, you are, but they're still going to blow your mind:
+
+```
+: \ tib mib + >in ! ; immediate
+\ Now we can comment!
+```
+
+No visbile `create`. No visible header patching. No ticking. No commas. We don't have to squint at a sea of ticking and commaing to know what the body of `\` does. It's right there: `tib mib + >in !`. There's an `exit` on the end, but that's now an "internal" to us. This *abstraction*, as thin as it is and layered as so closely as it is to raw assembly instructions, still lets us think in pure Forth. This is fortuitous, because there are three new words to figure out. `tib` is a pointer to the top of the input buffer. `mib` is the maximum valid index into the input buffer. `>in` is the address where input is currently being accepted from.
+
+Semantically, the `\` word throws away everything after itself on the line.
+
+A couple of gotchas and design decisions. `\` is the traditional line comment word. I think I prefer `#`. The other gotcah will getcha, for sure. Words in Forth must be separated by spaces, so:
+
+```
+\ This is a comment
+\This is an error.
+```
+If you're used to thinking of comment characters as special to other interpreters or a preprocessor, that one might catch you buy surprise. You probably are. It probably will!
+
+## Conclusion, sort of
+
+There is now a comment word in `init.forth`, and therefore in `maxiForth`. The creation myth proper is over. It's now on to serpents, temptation, & etc. The rest of `init.forth` contains not just the scriptures, but the concordance in the form of comments. You're probably a passable scribe or priest, now. There are currently some opportunities for factoring in there that I will take advantage of to make `init.forth` a better example for future Forthers such as yourself, but perhaps the current state of things could serve as a warning or byword, which is just aa different kind of valuable instruction, I suppose. Either way, you're now prepared to excavate the remaining 250 lines of pure Forth to see how to build the rest of the language with the base machinery in place.
+
+You could, if you wanted, take each section as a homework assignment and try recreating it after some study. There can be moments of transcendence and vertigo both in such an effort, especially if you have already written your own runtime in assembly and hand-laid CFAs. Where once you spake as an assembly programmer, understood as an assembly programmer, and thought as an assembly programmer, you will put away those childish things and begin to refactor like a Forth programmer. The Kingdom of Heaven is near!
+
+Happy Forthing!

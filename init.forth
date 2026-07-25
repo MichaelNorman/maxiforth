@@ -64,6 +64,21 @@ create unsmudge here 16 - dp ! ' docol @ , 0 ,
 ' ! ,
 ' exit ,
 
+create immediate here 16 - dp ! ' docol @ , 0 ,
+' latest ,
+' @ ,
+' lit ,
+8 ,
+' + ,
+' dup ,
+' c@ ,
+' lit ,
+32 ,
+' or ,
+' swap ,
+' c! ,
+' exit ,
+
 create : here 16 - dp ! ' docol @ , 0 ,
 ' create ,
 ' smudge ,
@@ -89,21 +104,6 @@ create : here 16 - dp ! ' docol @ , 0 ,
 1 ,
 ' state ,
 ' ! ,
-' exit ,
-
-create immediate here 16 - dp ! ' docol @ , 0 ,
-' latest ,
-' @ ,
-' lit ,
-8 ,
-' + ,
-' dup ,
-' c@ ,
-' lit ,
-32 ,
-' or ,
-' swap ,
-' c! ,
 ' exit ,
 
 create ; here 16 - dp ! ' docol @ , 0 ,
@@ -287,9 +287,11 @@ sp@ 1 cells - sp! \ we already know where this lives.
     else
         rev-ptr @ 1 +                         \ ( -- start-ptr <no `-` written> )
     then
-
+    \ write-len
     end-digit swap - 1 + dup num-str !        \ ( start-ptr -- num-chars <num-chars stored in num-str> )
+
     1 +                                       \ ( num-chars -- str-len)
+    \ copy-down
     dup end-digit 2 + swap - swap             \ ( str-len -- src str-len )
     num-str 1 cells +                         \ ( src str-len -- src str-len dest )
     swap                                      \ ( src str-len dest -- src dest str-len )
