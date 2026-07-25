@@ -18,21 +18,21 @@ One of the first goals of `init.forth` is to create the compilation words `:` an
 
 `init.forth` begins rather cryptically with a line that lays items down directly and quite literally into memory using, among others, the `,` word. The items being laid down are in the format of the header of a Forth word. This format looks like:
 
-```[*prev(8)][mask(0.3)][len(0.5)][char[31]][CFA(8)][0(8)]...```
+```[ *prev(8) ][ mask(0.3) ][ len(0.5) ][ char[31] ][ CFA(8) ][ 0(8) ]...```
 
-The bits in parentheses are bytes and fractional bytes (bits). So, `8` represents a 64-bit word, and `0.3` represents three bits. In words, a dictionary entry is a 64-bit pointer to the previous entry, three bits of masks, five bits specifying the length of a 31-byte (248-bit) string, said string, a 64-bit code field address (CFA), and 64-bits of 0s. Semantically, it's a previous pointer, a masked word-length word string, an address of the action to take for the word, and a reserved word for future use. The title of this section is **The Format of a Forth Word**, and I've only given you the header, so far. The rest of a word goes:
+The bits in parentheses are bytes and fractional bytes (bits). So, `8` represents a 64-bit word, and `0.3` represents three bits. In words, a dictionary entry is a 64-bit pointer to the previous entry, three bits of masks, five bits specifying the length of a 31-byte (248-bit) string, said string, a 64-bit code field address (CFA), and 64-bits of 0s. Semantically, it's a previous pointer, a masked word-length-prefixed word string, an address of the action to take for the word, and a reserved word for future use. The title of this section is **The format of a forth word**, and I've only given you the header, so far. The rest of a word goes:
 
-```...[P(64)][P(64)]...```
+```...[ P(64) ][ P(64) ]...```
 
-We take "P" to stand for "parameter." This region of the word is the parameter field, and it begins at the parameter field address (PFA). The parameter field is left mysterious, but it's often just a list of execution tokens (XTs) that point to the CFAs of other words, along with their data. That understanding will get you pretty far.
+Take "P" to stand for "parameter." This region of the word is the parameter field, and it begins at the parameter field address (PFA). The parameter field is left mysterious, but it's often just a list of execution tokens (XTs) that point to the CFAs of other words, along with their data. In other words, the PFA often contains the *body* of a Forth word. That understanding will get you pretty far.
 
 ## The behavior of some important first words
 
 ### `latest`
-Puts the address of the variable that holds the address the newest word onto the stack. `latest` is a special memory ara for Forth: It represents the head of the dictionary, the hook where word lookup starts.
+Puts the address of the variable that holds the address of the newest word onto the stack. `latest` is a special memory area for Forth: It represents the head of the dictionary, the hook where word lookup starts.
 
-### `@`
-Pronounced "get." Dereferences the top value on the stack and replaces it with the dereferenced value.
+### `@`, `c@`
+Pronounced "get" and "character get." Dereference the top value on the stack and replaces it with the dereferenced value. `@` gets a 64-bit value. `c@` gets an 8-bit value.
 
 ### `,`
 Pronounced "comma." This word pops the stack, writes the value to the current location in the dictionary (called `HERE`), and advances `HERE`.
@@ -40,14 +40,14 @@ Pronounced "comma." This word pops the stack, writes the value to the current lo
 ### `here`
 The current write location at the end of the dictionary, by definition. `HERE` is the location pointed to by the value that `here` puts on the stack. `here` is a word. `HERE` is the location. `,` writes to `HERE`.
 
-### `!`
-Pronounced "store." It's the opposite of get. Pops an address from the top of the stack, pops the next value, and stores the latter at the address pointed to by the former.
+### `!`, `c!`
+Pronounced "store" and "character store." The opposite of their "get" counterparts. Pop an address from the top of the stack, pops the next value, and stores the latter at the address pointed to by the former. They operate on 64-bit and 8-bit values, respectively.
 
 ### `dp`
 Dictionary pointer. The address where the pointer to `HERE` is stored. Another special Forth memory area.
 
 ### `word`
-Gets a word from the input and writes it to the address pointed to by the top of the stack. Leaves the address on the stack
+Gets a word from the input and writes it to the address pointed to by the top of the stack. Leaves the address on the stack. 
 
 ### `docol`
 Do a colon-defined word. This does some bookkeeping and transfers control to the first XT in the PFA. Welcome to Forth! A "colon definition" is a word that you create with the `:` and `;` words. Our first and most important goal is to implement these words in Forth. Until we do, we have to work directly in memory, hand-building their machinery so we can use them to build the rest of the language.
@@ -60,10 +60,10 @@ Forgets the top word on the stack and moves the top-of-stack pointer (TOS) accor
 
 
 ### `lit`
-A word that reads a value from the next slot in the dictionary and puts it on the stack. This is used so colon-definitions can work with values on the stack.
+A word that reads a value from the next slot in the dictionary and puts it on the stack. This lets colon-definitions work with values on the stack.
 
 ### `exit`
-Leaves a colon-defined word and undoes `docol`'s bookkeeping gracefully.
+Leaves a colon-defined word's body at run time and undoes `docol`'s bookkeeping gracefully.
 
 ## Defining `'`
 `'`, pronounced "tick," gets a word from the input stream, finds it, and puts its XT on the stack. Unfortunately or fortunately, depending on your perspective, it's the core word used in laying down values into the dictionary manually, so we have to lay them down manually with more verbose means. On the bright side, we get to see how its internals work and how much harder life could be without it just by reading its definition. In all its glory:
@@ -83,19 +83,21 @@ Remember the memory layout for the header of a Forth word from **The Format of a
 
 Maybe it's easier to see now that `latest @ ,` gets the value of `latest` and writes it to `here` with `,`. This is now the `[*prev]` in that definition. There are then 5 words that don't touch the definition, `here 8 - latest !`. Instead, this fragment gets the address where we just laid down `[*prev]` by subtracting 8 (bytes) from the updated `HERE`, then stores it in `latest`. This makes the word we are about to create the head of the dictionary. Subsequent lookups will start from here until we add another link to the list. Now, we need to write a word to the dictionary. We have a word for this, `word`, that takes an address to which to write its data, hence `here word '`. That's going to write `[1(1)][39(1)][0(30)]`, or a 1-length word `'` followed by 30 zeros. We wrote those in place, without updating `HERE`, so `32 + dp !` adds 32 to the start of the `HERE` pointer that `word` left behind and stored it in `dp`.
 
-That was a lot of words for not a lot of Forth! We wrote 40 bytes of data. That preamble will be repeated a few times. I'll refer to it as "writing the preamble," or "write/writes the preamble." The next thing we need after the preamble is the CFA. The CFA is the location of the assembly code that the `docol` word's CFA points to. In other words, we need to follow the address at `docol`'s XT. Perhaps you can see that `here word docol` puts the word for `docol` into the dictionary? There aren't a lot of places to put words, and the runtime needs to use its internal word storage for its machinery, so we just put it into the dictionary and then overwrite it with the rest of the definition. `find` picks the address of the word off the stack and looks it up, setting the success value down after it. We trust that it succeeds (`drop`), and then do `@ ,`, which gets the address of the actual assembly code for `docol` and writes that into the dictionary at `HERE`. Finally, we said that we reserve a 0 in the format, which is accomplished by `0 ,`.
+That was a lot of words for not a lot of Forth! We wrote 40 bytes of data. That preamble will be repeated a few times. I'll refer to it as "writing the preamble" or, "writing the header" if I'm talking about writing the preamble above and the CFA and placeholder, as discussed next.
 
-So, that line wrote the assembly address of the business end of the word `docol` into the dictionary at `HERE` and followed it up with zero. The next five lines are very similar, fitting the template:
+After the preamble comes the CFA. The CFA is the location of the assembly code that the word points to. This word "does" `docol`, o we need to follow the address at `docol`'s XT. Perhaps you can see that `here word docol` reads the word for `docol` into the current location in the dictionary? There aren't a lot of places to put words, and the runtime needs to use its internal word storage for its machinery, so we just put it into the dictionary and then continue with the rest of the definition. (The alternative would have been to read it into `wbuf` and then copy it into the dictionary; two birds with one stone.) `find` picks the address of the word off the stack and looks it up, setting the success value down after it. We trust that it succeeds (`drop`), and then do `@ ,`, which gets the address of the actual assembly code for `docol` and writes that into the dictionary at `HERE`. Finally, we said that we reserve a 0 in the format, which is accomplished by `0 ,`.
+
+To review, that line wrote the assembly address of the business end of the word `docol` into the dictionary at `HERE` and followed it up with zero. The next five lines are very similar, fitting the  template below:
 ```
 here word <thing> find drop ,
 ```
-We can see a couple of differences. First, we don't write the 0. That's a special value that comes after the CFA. Second, we don't get the value of what `find` finds; we leave that level of indirection intact. (There is no `@`.) Third,  and finally, we're writing different things for each line. Those things read `wbuf word find drop exit`. But perhaps we're getting ahead of ourselves. For now, we can see that `here word <thing> find drop ,` puts the XT for `<thing>` into the dictionary at `HERE`, which is exactly what `'` will do!
+We can see a couple of differences between thes line and the one that wrote the CFA of `docol`. First, we don't write the 0. That's a special value that comes after the CFA. Second, we don't dereference what `find` finds; there is no `@`. Third,  and finally, we're writing different things for each line. Those things will read `wbuf word find drop exit` when we're done, but more on that in a bit. For now, notice that `here word <thing> find drop ,` puts the XT for `<thing>` into the dictionary at `HERE`, which is exactly what `'` will do!
 
 Well, almost exactly! Remember that I mentioned that we needed to find different locations in which to build words so that we didn't clobber things? Well, I created another special memory area that is accessible with the address that `wbuf` puts onto the stack. So, `wbuf word <thing> find drop ,` is just like `here word <thing> find drop ,`, except safer for the runtime since we're not clobbering the runtime's word buffer, nor are we writing into the dictionary (`HERE`) where things might get clobbered during definitions.
 
 The final thing that we lay down into memory is the XT of `exit`. `exit` is the word that "backs out" of a colon definition and returns control to the word that dispatched to it. With few exceptions, every colon word needs this.
 
-It's important and instructive to see `'` laid out directly in memory with the tools we had available. It's awe-inspiring, I think, to see that we can now just use `'` to accomplish `wbuf word find drop exit`. And we will start ticking away almost immediately!
+It's important and instructive to see `'` laid out directly in memory with the tools we had available. It's awe-inspiring, I think, to see that we can now just use `'` to accomplish `wbuf word find drop exit`. We will start ticking away almost immediately!
 
 ## Creating `create`
 
@@ -129,15 +131,15 @@ latest @ , here 8 - latest ! here word create 32 + dp !
 ' exit ,
 ```
 
-By now, you should recognize `latest @ , here 8 - latest ! here word create 32 + dp ! ' docol @ , 0 ,` as creating a header for the word `create`. It's identical to the first line of the defintion of `'`, except that `'` is replaced by `create`. See? You're getting the hang of this already! Well, almost. I snuck something in there, didn't I?! Do you see it now? That's right! `'` has already made its first appearance! We would had to have written `wbuf word docol find drop` before the `@` just seven lines ago! Now, we can just write `' docol @`. Immediately, we really start going to town with `'`! Tick is the star of the show! As a matter of fact, without trying to read each `'` and `,`, try reading the words that this definition lays down. I'll bet you can! I'll write it below, but don't peek! Really try to read it out loud, first. Done? Okay. Here it is:
+By now, you should recognize `latest @ , here 8 - latest ! here word create 32 + dp ! ' docol @ , 0 ,` as writing a header for the word `create`. It's identical to the first line of the defintion of `'`, except that `'` is replaced by `create`. See? You're getting the hang of this already! Well, almost. I snuck something in there, didn't I?! Do you see it now? That's right! `'` has already made its first appearance! We would had to have written `wbuf word docol find drop` before the `@` just seven lines ago! Now, we can just write `' docol @`. Immediately, we really start going to town with `'`! Tick is the star of the show! As a matter of fact, without trying to read each `'` and `,`, try reading the words that this definition lays down. I'll bet you can! I'll write it below, but don't peek! Really try to read it out loud, first. Done? Okay. Here it is:
 ```
-latest @ , dp @ lit 8 - latest ! here word lit 32 + dp ! lit ['] dovar @, lit 0 , exit
+latest @ , dp @ lit 8 - latest ! here word lit 32 + dp ! lit CFA(dovar) , lit 0 , exit
 ```
-Did you get at least close? (`[']` is a word we haven't seen or defined, yet.) Still, exhilarating, isn't it! We're now "thinking" in a word that we just defined and reaping the benefits of the notation! `' <thing> ,` means "write the XT for &lt;thing&gt;, found in the dictionary, `HERE`, and do the right thing with `HERE`." Semantically, it's "put this word into the next spot in the definition."
+Did you get at least close? (`CFA(dovar)` is just the address of the code that runs `dovar`.) Exhilarating, isn't it! We're now "thinking" in a word that we just defined and reaping the benefits of the notation! `' <thing> ,` means "write the XT for &lt;thing&gt;, found in the dictionary, `HERE`, and do the right thing with `HERE`." More directly, it's "put this word into the next spot in the definition."
 
-But, now we have some new code, the code we laid down with our new best friend, `'`. Does that code remind you of anything? It should look to you quite a bit like writing the preamble, but with some extra stuff mixed in and on the end. When we're running "live" code, such as when we were writing the preamble or defining tick, we could just write `8` or `32` and the interpreter would put that on the stack for us. Inside a running word, the input stream isn't available, so values have to come from somewhere else. What were previously `8` and `32` have to become `lit 8` and `lit 32`, respectively. One level back, we had to do `' lit , 8 ,` and `' lit , 32 ,`. We "ticked in" `lit`. `8` didn't need to be ticked in, because the runtime did it for us during the definition, because the definition is "live code." Just squint at that one for a bit. It takes some time to sort it all out. At any rate, that explains some of the stuff that got "mixed in" to our clean ideas about writing the preamble.
+But, now we have some new code, the code we laid down with our new best friend, `'`. Does that code remind you of anything? It should look to you quite a bit like writing the header, but with some extra stuff mixed in and on the end. When we're running "live" code, such as when we were writing the preamble or defining tick, we could just write `8` or `32` and the interpreter would put that on the stack for us. Inside a running word, the input stream isn't available, so values have to come from somewhere else. What were previously `8` and `32` have to become `lit 8` and `lit 32`, respectively. One level back, we had to do `' lit , 8 ,` and `' lit , 32 ,`. We "ticked in" `lit`. `8` didn't need to be ticked in, because the runtime did it for us during the definition, because the definition is "live code." Just squint at that one for a bit. It takes some time to sort it all out. At any rate, that explains some of the stuff that got "mixed in" to our clean ideas about writing the preamble.
 
-But that doesn't explain this word `dovar` that we tick in *as a literal*. "As a literal" is doing some important work. We're looking up `dovar` in the dictionary and putting its value on the stack, but we want to do that *when the definition runs*, and *not right now*. This is just going twist your brain into knots for a bit. You have to get very clear on when things are running and when they're being defined. `create` is a *defining word*. We would prefer it to always write the address of the `dovar` that we defined when we wrote the Forth. This means that we want to resolve the value of this address now, while we're writing `create`, and not every time `create` runs. Compare:
+But that doesn't explain this word `dovar` that we tick in *as a literal*. "As a literal" is doing some important work. We're looking up `dovar` in the dictionary and putting its value on the stack, but we want to do that *when the definition runs*, and *not right now*. This is just going twist your brain into knots for a bit. You have to get very clear on when things are running and when they're being defined. `create` is a *defining word*. We would prefer `create` to only have to write the address of the `dovar` that we accessed when we wrote the Forth, rather than doing the `@` itself for every defintion. This means that we want to resolve the value of this address now, while we're writing `create`, and not every time `create` runs. Compare:
 ```
 ' lit ,
 ' dovar ,
@@ -148,13 +150,13 @@ with
 ' lit ,
 ' dovar @ ,
 ```
-The first one *defers* resolving `dovar` until `create` runs by putting the XT of dovar on the stack and having `create` run `@` on it. The second one puts the value of `dovar` directly into the `lit`.
+The first one *defers* resolving `dovar` until `create` runs by putting the XT of `dovar` on the stack and having `create` run `@` on it. The second one puts the value of `dovar` directly into the cell that follows `lit`.
 
 But, back to `dovar`. It's just a word that puts the address of the location after itself in the dictionary onto the stack. This lets you put things in that spot.
 
-The only other notable thing about the definition of `create`, other than that it's pretty awesome, is that we don't supply the name of the word to create after `word`. Remember, `word` reads from the input. Unlike most words, which are RPN, it takes its input after it, from the programmer. So, you use it like `create something` to create a dictionary entry for the Forth entity (word/variable/constant/??) called `something`.
+The only other notable thing about the definition of `create` is that we don't supply the name of the word to create after `word`. Remember, `word` reads from the input. Unlike most words, which are RPN, it takes its input after it, from the programmer. So, you use it like `create something` to create a dictionary entry for the Forth entity (word/variable/constant/??) called `something`.
 
-Before going to the next section, though, stop and marvel at how powerful `'` was for us, and how much additional power it bought us by making it so much easier to implement `create`. It's something else!
+Before going to the next section, though, stop and marvel at how powerful `'` was for us, and how much additional power it bought us by making it so much easier to implement `create`!
 
 ## `create` some things
 
@@ -162,7 +164,7 @@ We're getting more for free now than we used to. We can just `create` a word to 
 
 When thinking about Forth, the concept of the simplest thing that could possibly work should come up quite a bit. In fact, our next efforts will make one constraint of this simplicity apparent: Forth is single-pass, and that pass is the current place in the input. This means that if you want to build a helper word, it has to be built temporally and lexically before the word that runs the helper. (There are ways around this, but we would have to build them, and they wouldn't be the simplest thing that could possibly work.)
 
-`:` and `;` are best implemented with some helper words, so `init.forth` delays gratification a little more for a cleaner result. Words are hidden from dictionary lookup by "smudging" them, which essentially amounts to setting a flag on the word that the runtime recognizes. This gives rise to the need for the `smudge` and `unsmudge` words. The last word we'll need before we write `:` and `;`&mdash;technically, it's not needed until right before `;` is defined)&mdash;is `immediate`. An immediate word always runs when it is encountered, even during compilation. (You can still tick it because `'` does the lookup step without running it.) Because `;` is encountered during compilation, it needs to be immediate so that it can take over compilation and wrap things up.
+`:` and `;` are best implemented with some helper words, so `init.forth` delays gratification a little more for a cleaner result. The first thing we need to handle are *smudging* and *unsmudging*. Words are hidden from dictionary lookup by smudging them, which essentially amounts to setting a flag on the word that the runtime recognizes. This gives rise to the need for the `smudge` and `unsmudge` words. The last word we'll need before we write `:` and `;`&mdash;technically, it's not needed until right before `;` is defined&mdash;is `immediate`. An immediate word always runs when it is encountered, even during compilation. (You can still tick it because `'` does the lookup step without running it.) Because `;` is encountered during compilation, it needs to be immediate so that it can take over compilation and wrap things up.
 
 Here's the listing for the definitions of `smudge` and `unsmudge`:
 
@@ -201,9 +203,9 @@ create unsmudge here 16 - dp ! ' docol @ , 0 ,
 
 Look at `create` go! Instead of having to lay down the header item by item, we do `create <thing>`, followed by some arithmetic on `HERE`, `here 16 - dp !`, finally followed by laying down the CFA of `docol` where the CFA of `dovar` was with `' docol @`. Rather than go through the hassle of advancing over the `0` that create laid down, the easiest thing is just to lay it down again with ` 0 ,`. This line is only a little bit shorter than the manual line from earlier, but it's a little bit easier to read.
 
-The bodies of `smudge` and `unsmudge` lay down a swath of values identical between them, so it's worthwile to understand them once. Those values are: `latest @ lit 8 + dup @ lit 64`. You should have enough practice now to be able to see that that duplicates the address 8 bytes beyond the `[*prev]` field of the word most recently laid down, replace the copy of that address with what lives there, and puts 64 onto the stack.
+The bodies of `smudge` and `unsmudge` lay down a swath of values that are identical between them, so it's worthwile to understand them once. Those values are: `latest @ lit 8 + dup @ lit 64`. You should have enough practice now to be able to see that this fragment duplicates the address 8 bytes beyond the `[*prev]` field of the word most recently laid down, replaces the copy of that address with what lives there, and puts 64 onto the stack.
 
-64 is a bit cryptic, but it's just the smudge bit. `or swap !` stores whatever was already there back onto itself, but with the smudge bit set. `invert and swap !` writes it back with the smudge bit cleared.
+64 is a bit cryptic, but it's just the smudge bit. `or swap !` stores whatever was already there back onto itself, except with the smudge bit set. `invert and swap !` writes it back with the smudge bit cleared.
 
 With those explained, we can turn our attention to `immediate`, which also operates on the last word and sets the flag that makes it immediate. Here is the code that defines it:
 
@@ -264,7 +266,7 @@ The header is laid down with the familiar `create`-and-replace mechanic we've al
 create smudge dp @ lit 16 - dp ! lit docol @ , dp @ lit 8 + dp ! lit 1 state ! exit
 ```
 
-Fragments of that should seem familiar. `dp @ lit 16 - dp !` is just colon-word-ese for `here 16 - dp ! docol @ , 0,`, except that it opts for walking past the `dovar` reserved data field over replacing it with zero. After that, it simple sets `state` to 1. 0 is the interpreting state and 1 is the compiling state. Much of what `:` does is setup and teardown for machinery that's implemented in the outer loop. In `maxiForth`, that machinery is implemented in hand-laid CFAs. After `:` is run, the Forth runtime is in the "compiling" state.
+Fragments of that should seem familiar. `dp @ lit 16 - dp !` is just colon-word-ese for `here 16 - dp ! docol @ , 0,`, except that it opts for walking past the `dovar` reserved data field over replacing it with zero. After that, it simply sets `state` to 1. 0 is the interpreting state and 1 is the compiling state. Much of what `:` does is setup and teardown for machinery that's implemented in the outer loop. (In `maxiForth`, that machinery is implemented in hand-laid CFAs.) After `:` is run, the Forth runtime is in the "compiling" state.
 
 This leaves only `;`, our first immediate word:
 
@@ -282,7 +284,7 @@ create ; here 16 - dp ! ' docol @ , 0 ,
 immediate
 ```
 
-Say goodbye to hand-laid headers. After `'` is defined, we have all the machinery we need. (We hardly knew ye!) The body that is laid down for `;` is just: `lit 0 state ! lit CFA(exit) , unsmudge exit`. The `CFA(exit)` was a bit of a cheat, but that's essentially what `' exit ,` lays down. All that `;` is doing is putting us back into the interpreting state, unsmudging the word so it's ready for lookup, and `exit`ing. We then call `immediate` to make it so `;` runs when the runtime is in the compiling state.
+Say goodbye to hand-laid headers on their final victory lap! After `;` is defined, we have all the machinery we need. (We hardly knew ye!) The body that is laid down for `;` is just: `lit 0 state ! lit CFA(exit) , unsmudge exit`. The `XT(exit)` was a bit of a cheat, but that's essentially what `' exit ,` lays down. All that `;` is doing is putting us back into the interpreting state, unsmudging the word so it's ready for lookup, and `exit`ing. We then call `immediate` to make it so `;` runs when the runtime is in the compiling state.
 
 ## The line comment word: `\`
 
@@ -307,8 +309,8 @@ If you're used to thinking of comment characters as special to other interpreter
 
 ## Conclusion, sort of
 
-There is now a comment word in `init.forth`, and therefore in `maxiForth`. The creation myth proper is over. It's now on to serpents, temptation, & etc. The rest of `init.forth` contains not just the scriptures, but the concordance in the form of comments. You're probably a passable scribe or priest, now. There are currently some opportunities for factoring in there that I will take advantage of to make `init.forth` a better example for future Forthers such as yourself, but perhaps the current state of things could serve as a warning or byword, which is just aa different kind of valuable instruction, I suppose. Either way, you're now prepared to excavate the remaining 250 lines of pure Forth to see how to build the rest of the language with the base machinery in place.
+There is now a comment word in `init.forth`, and therefore in `maxiForth`. The creation myth proper is over. It's now on to serpents, temptation, & etc. The rest of `init.forth` contains not just the scriptures, but the concordance in the form of comments. You're probably a passable scribe or priest, now. There are currently some opportunities for factoring in there that I will take advantage of to make `init.forth` a better example for future Forthers such as yourself, but perhaps the current state of things could serve as a warning or byword, which is just a different kind of valuable instruction, I suppose. Either way, you're now prepared to excavate the remaining 250 lines of pure Forth to see how to build the rest of the language with the base machinery in place.
 
-You could, if you wanted, take each section as a homework assignment and try recreating it after some study. There can be moments of transcendence and vertigo both in such an effort, especially if you have already written your own runtime in assembly and hand-laid CFAs. Where once you spake as an assembly programmer, understood as an assembly programmer, and thought as an assembly programmer, you will put away those childish things and begin to refactor like a Forth programmer. The Kingdom of Heaven is near!
+You could, if you wanted, take each section as a homework assignment and try recreating it after some study. I promise you, there can be moments of transcendence and vertigo both in such an effort, especially if you have already written your own runtime in assembly and hand-laid CFAs. Where once you spake as an assembly programmer, understood as an assembly programmer, and thought as an assembly programmer, you will put away those childish things and begin to refactor like a Forth programmer. The Kingdom of Heaven is near!
 
 Happy Forthing!
