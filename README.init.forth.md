@@ -27,7 +27,7 @@ Puts the address of the variable that holds the address the newest word onto the
 Pronounced "get." Dereferences the top value on the stack and replaces it with the dereferenced value.
 
 ### `,`
-Pronounced "comma." This word pops the stack, writes the value to the current location in the dictionary (called `here`), and advances `here`.
+Pronounced "comma." This word pops the stack, writes the value to the current location in the dictionary (called `HERE`), and advances `HERE`.
 
 ### `here`
 The current write location at the end of the dictionary, by definition. `HERE` is the location pointed to by the value that `here` puts on the stack. `here` is a word. `HERE` is the location. `,` writes to `HERE`.
@@ -58,7 +58,7 @@ A word that reads a value from the next slot in the dictionary and puts it on th
 Leaves a colon-defined word and undoes `docol`'s bookkeeping gracefully.
 
 ## Defining `'`
-`'`, pronounced "tick," gets a word from the input stream, finds it, and puts its XT on the stack. Unfortunately or fortunately, depending on your perspective, it's the core word used in laying down values into the dictionary manually, so we have to lay them down manually with more verbose means. On the bright sid, we get to see how its internals work and how much harder life could be without it just by reading its definition. In all its glory:
+`'`, pronounced "tick," gets a word from the input stream, finds it, and puts its XT on the stack. Unfortunately or fortunately, depending on your perspective, it's the core word used in laying down values into the dictionary manually, so we have to lay them down manually with more verbose means. On the bright side, we get to see how its internals work and how much harder life could be without it just by reading its definition. In all its glory:
 ``` Forth
 latest @ , here 8 - latest ! here word ' 32 + dp !
 here word docol find drop @ , 0 ,
@@ -71,7 +71,7 @@ here word exit find drop ,
 
 Remember the memory layout for the header of a Forth word from **The Format of a Forth Word**? That's what the first two lines of that are doing. Here it is again to refresh your memory:
 
-```[*prev(8)][mask(0.3)][len(0.5)][char[31]][CFA(8)][0(8)]...```
+```[ *prev(8) ][ mask(0.3) ][ len(0.5) ][ char[31] ][ CFA(8) ][ 0(8) ]...```
 
 Maybe it's easier to see now that `latest @ ,` gets the value of `latest` and writes it to `here` with `,`. This is now the `[*prev]` in that definition. There are then 5 words that don't touch the definition, `here 8 - latest !`. Instead, this fragment gets the address where we just laid down `[*prev]` by subtracting 8 (bytes) from the updated `HERE`, then stores it in `latest`. This makes the word we are about to create the head of the dictionary. Subsequent lookups will start from here until we add another link to the list. Now, we need to write a word to the dictionary. We have a word for this, `word`, that takes an address to which to write its data, hence `here word '`. That's going to write `[1(1)][39(1)][0(30)]`, or a 1-length word `'` followed by 30 zeros. We wrote those in place, without updating `HERE`, so `32 + dp !` adds 32 to the start of the `HERE` pointer that `word` left behind and stored it in `dp`.
 
@@ -83,7 +83,7 @@ here word <thing> find drop ,
 ```
 We can see a couple of differences. First, we don't write the 0. That's a special value that comes after the CFA. Second, we don't get the value of what `find` finds; we leave that level of indirection intact. (There is no `@`.) Third,  and finally, we're writing different things for each line. Those things read `wbuf word find drop exit`. But perhaps we're getting ahead of ourselves. For now, we can see that `here word <thing> find drop ,` puts the XT for `<thing>` into the dictionary at `HERE`, which is exactly what `'` will do!
 
-Well, almost exactly! Remember that I mentioned that we needed to find different locations in which to build words so that we didn't clobber things? Well, I created another special memory area that is accessible with the address that `wbuf` puts onto the stack. So, `wbuf word <thing> find drop ,` is just like `here word <thing> find drop ,`, except safer for the runtime since we're not clobbering the runtime's word buffer, and nor are we writing into the dictionary (`HERE`) where things might get clobbered during definitions.
+Well, almost exactly! Remember that I mentioned that we needed to find different locations in which to build words so that we didn't clobber things? Well, I created another special memory area that is accessible with the address that `wbuf` puts onto the stack. So, `wbuf word <thing> find drop ,` is just like `here word <thing> find drop ,`, except safer for the runtime since we're not clobbering the runtime's word buffer, nor are we writing into the dictionary (`HERE`) where things might get clobbered during definitions.
 
 The final thing that we lay down into memory is the XT of `exit`. `exit` is the word that "backs out" of a colon definition and returns control to the word that dispatched to it. With few exceptions, every colon word needs this.
 
@@ -125,7 +125,7 @@ By now, you should recognize `latest @ , here 8 - latest ! here word create 32 +
 ```
 latest @ , dp @ lit 8 - latest ! here word lit 32 + dp ! lit ['] dovar @, lit 0 , exit
 ```
-Did you get at least close? (`[']` is a word we haven't seen or defined, yet.) Still, exhilarating, isn't it! We're now "thinking" in a word that we just defined and reaping the benefits of the notation! `' <thing> ,` means "write the XT for <thing>, found in the dictionary, `HERE`, and do the right thing with `HERE`." Semantically, it's "put this word into the next spot in the definition."
+Did you get at least close? (`[']` is a word we haven't seen or defined, yet.) Still, exhilarating, isn't it! We're now "thinking" in a word that we just defined and reaping the benefits of the notation! `' <thing> ,` means "write the XT for &lt;thing&gt;, found in the dictionary, `HERE`, and do the right thing with `HERE`." Semantically, it's "put this word into the next spot in the definition."
 
 But, now we have some new code, the code we laid down with our new best friend, `'`. Does that code remind you of anything? It should look to you quite a bit like writing the preamble, but with some extra stuff mixed in and on the end. When we're running "live" code, such as when we were writing the preamble or defining tick, we could just write `8` or `32` and the interpreter would put that on the stack for us. Inside a running word, the input stream isn't available, so values have to come from somewhere else. What were previously `8` and `32` have to become `lit 8` and `lit 32`, respectively. One level back, we had to do `' lit , 8 ,` and `' lit , 32 ,`. We "ticked in" `lit`. `8` didn't need to be ticked in, because the runtime did it for us during the definition, because the definition is "live code." Just squint at that one for a bit. It takes some time to sort it all out. At any rate, that explains some of the stuff that got "mixed in" to our clean ideas about writing the preamble.
 
