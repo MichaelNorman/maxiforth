@@ -42,7 +42,7 @@ reader, word processor, or what have you.
 #### Feature
 Strings that are allocated on the heap. The `h"` word takes a variable from the stack and saves its string pointer to
 it after it's done reading. The variable lives forever, but the string can be freed with `var-free`, which both checks
-for 0 before freeing. It aborts with an error if you encounter a `0` in the variable.
+for 0 before freeing and aborts with an error if it encounters a `0` in the variable.
 
 ### 2) Runtime DLL loading
 #### Status quo
@@ -87,5 +87,4 @@ have to look up how to do it each time. This is why I'm putting it off until I e
 with the embarrassment. I am not easily embarrassed, at least not in this case.
 
 ## Conclusion
-This work, and the rewrite and Linux port, will happen in parallel with the book, YT series, Linux port, and other
-efforts.
+This work, and the rewrite and Linux port, will happen in parallel with the book, YT series, Linux port, and other efforts.

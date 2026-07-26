@@ -226,7 +226,7 @@ create 'lit ' lit , \ put lit into the dictionary
 
 \ ./.s/u./.r
 
-\ .
+\ fill-num, .
 
 var num-str 24 allot \  var reserves 8. 24 allot allows for [length (8 bytes)][chars (23 bytes)][0 (1 byte)]
 var rev-ptr
@@ -260,14 +260,10 @@ sp@ 1 cells - sp! \ we already know where this lives.
 \         into the number string until the quotient is 0, writes the sign if present, writes the count, and
 \         copies the string down into the start slot of the number.
 \ ( num -- )
-: fill-num
-    \ prep-buffer
-    dup
-    end-digit rev-ptr !                       \ ( num -- <rev-ptr now points to the last valid digit slot> )
-    rev-ptr @ 1 + 0 swap c!                   \ ( num -- <write 0 beyond last valid digit spot> )
-    set-neg                                   \ ( num -- num <neg is set> )
 
-    \ acc-digits
+: prep-buffer dup end-digit rev-ptr ! rev-ptr @ 1 + 0 swap c! set-neg ;
+
+: acc-digits
     dup 0 = if
         digit-for pnext-digit c!              \ ( num -- <character for digit stored> )
     else
@@ -280,23 +276,26 @@ sp@ 1 cells - sp! \ we already know where this lives.
         repeat
         drop                                  \ ( quotient -- <leftover quotient dropped> )
     then
+;
 
-    \ handle-sign
+: handle-sign
     neg @ if
         pnext-digit dup 45 swap c!            \ ( -- start-ptr <`-` written> )
     else
         rev-ptr @ 1 +                         \ ( -- start-ptr <no `-` written> )
     then
-    \ write-len
-    end-digit swap - 1 + dup num-str !        \ ( start-ptr -- num-chars <num-chars stored in num-str> )
+;
 
-    1 +                                       \ ( num-chars -- str-len)
-    \ copy-down
+: write-len end-digit swap - 1 + dup num-str ! ;      \ ( start-ptr -- num-chars <num-chars stored in num-str> )
+
+: copy-down
     dup end-digit 2 + swap - swap             \ ( str-len -- src str-len )
     num-str 1 cells +                         \ ( src str-len -- src str-len dest )
     swap                                      \ ( src str-len dest -- src dest str-len )
     cmove                                     \ ( src dest str-len -- <string representation copied down> )
 ;
+
+: fill-num prep-buffer acc-digits handle-sign write-len 1 + copy-down ;
 
 : . fill-num drop num-str nl type ;
 : ._ fill-num drop num-str type ;
@@ -367,7 +366,5 @@ i" \nFile pointer stack overflow.\n" const fpov-msg
 \ " will take a variable and assign its address to the variable
 \ ptr-free will do two things: abort if the variable contains 0, or free and write 0
 
-i" Double-free detected! Aborting..." const dbl-free-err
-: cr 10 emit ;
-: ptr-free dup @ 0= if cr dbl-free-err type abort then dup @ free 0 @ ;
-
+include C:\Users\mknor\CLionProjects\core_forth\explore\heap-strings.forth
+\ : ptr-free dup @ 0= if cr dbl-free-err type abort then dup @ free 0 @ ;
