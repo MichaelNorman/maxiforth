@@ -28,7 +28,7 @@ section .data
     okstr                          db " ok", 10, 0
     init_forth_str                 db "init.forth", 0
     file_read_str                  db "rb", 0
-    message                        db "It worked!", 10, 0
+    message                        db 10, "It worked!", 10, 0
     splash:                        db "Welcome to maxiForth", 10
                                    db "An exploratory example Forth.", 10
                                    db "Copyright 2026, Michael K Norman", 0

@@ -1,3 +1,6 @@
+;%ifndef BOUNDS_CHECK
+;%define BOUNDS_CHECK
+;%endif
 
 %macro enter_call 0
     push rdi
@@ -28,45 +31,53 @@
 ; post: cleared to write or error, rcx & rdx clobbered
 
 %macro ds_overflow 1
-    lea rcx, [DATA_TOS_REG + POINTER_SIZE * %1]
-    lea rdx, [rel data_stack + DATA_STACK_SIZE * POINTER_SIZE]
-    cmp rcx, rdx
-    jb %%ok
-    sub rsp, 32
-    call error_data_overflow
-    ; doesn't return, so no need to add 32 bytes back
-    %%ok:
+    %ifdef BOUNDS_CHECK
+        lea rcx, [DATA_TOS_REG + POINTER_SIZE * %1]
+        lea rdx, [rel data_stack + DATA_STACK_SIZE * POINTER_SIZE]
+        cmp rcx, rdx
+        jb %%ok
+        sub rsp, 32
+        call error_data_overflow
+        ; doesn't return, so no need to add 32 bytes back
+        %%ok:
+    %endif
 %endmacro
 
 %macro ds_underflow 1
-    lea rcx, [DATA_TOS_REG - POINTER_SIZE * %1]
-    lea rdx, [rel data_stack]
-    cmp rdx, rcx
-    jbe %%ok
-    sub rsp, 32
-    call error_data_underflow
-    %%ok:
+        %ifdef BOUNDS_CHECK
+        lea rcx, [DATA_TOS_REG - POINTER_SIZE * %1]
+        lea rdx, [rel data_stack]
+        cmp rdx, rcx
+        jbe %%ok
+        sub rsp, 32
+        call error_data_underflow
+        %%ok:
+    %endif
 %endmacro
 
 %macro rs_overflow 1
-    lea rcx, [RETURN_TOS_REG + POINTER_SIZE * %1]
-    lea rdx, [rel return_stack + RETURN_STACK_SIZE * POINTER_SIZE]
-    cmp rcx, rdx
-    jb %%ok
-    sub rsp, 32
-    call error_return_overflow
-    ; doesn't return, so no need to add 32 bytes back
-    %%ok:
+    %ifdef BOUNDS_CHECK
+        lea rcx, [RETURN_TOS_REG + POINTER_SIZE * %1]
+        lea rdx, [rel return_stack + RETURN_STACK_SIZE * POINTER_SIZE]
+        cmp rcx, rdx
+        jb %%ok
+        sub rsp, 32
+        call error_return_overflow
+        ; doesn't return, so no need to add 32 bytes back
+        %%ok:
+    %endif
 %endmacro
 
 %macro rs_underflow 1
-    lea rcx, [RETURN_TOS_REG - POINTER_SIZE * %1]
-    lea rdx, [rel return_stack]
-    cmp rdx, rcx
-    jbe %%ok
-    sub rsp, 32
-    call error_return_underflow
-    %%ok:
+    %ifdef BOUNDS_CHECK
+        lea rcx, [RETURN_TOS_REG - POINTER_SIZE * %1]
+        lea rdx, [rel return_stack]
+        cmp rdx, rcx
+        jbe %%ok
+        sub rsp, 32
+        call error_return_underflow
+        %%ok:
+    %endif
 %endmacro
 
 %macro stack_pushq 2 ; reg, tos

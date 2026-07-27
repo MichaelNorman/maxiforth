@@ -1056,11 +1056,11 @@ _malloc:
 
 _calloc:
     ds_underflow 2
+    int3
     stack_popq rdx, DATA_TOS_REG ; size
     stack_popq rcx, DATA_TOS_REG ; num
     call calloc
     stack_pushq rax, DATA_TOS_REG ;ptr
-    int3
     jmp _next
 
 _realloc:
