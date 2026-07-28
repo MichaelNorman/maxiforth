@@ -366,7 +366,6 @@ i" \nFile pointer stack overflow.\n" const fpov-msg
 \ " will take a variable and assign its address to the variable
 \ ptr-free will do two things: abort if the variable contains 0, or free and write 0
 
-include C:\Users\mknor\CLionProjects\core_forth\custom\custom.forth
-
+include @MAXIFORTH_ROOT@\custom\custom.forth
 
 

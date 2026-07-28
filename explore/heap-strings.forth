@@ -1,4 +1,3 @@
-msg
 i" Double-free detected! Aborting..." const dbl-free-err
 : cr 10 emit ;
 
@@ -16,7 +15,7 @@ var test-var
 \ calloc returns an address that's been assigned to the requested memory size.
 
 14 1 calloc test-var !
-test-var pvar-free
+test-var var-free
 
 \ Design: Heap strings will be allocated on the heap, support a limited set of escape sequences.
 
@@ -36,7 +35,6 @@ var escaping
 ;
 
 \ Safely write a character to the string, calling realloc if necessary
-; safe-write ;
+: safe-write ;
 
 : handle-buffer-start escaping @ invert if exit then safe-read dup 8 = if 0 escaping ! else safe-write then ;
-

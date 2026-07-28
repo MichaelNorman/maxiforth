@@ -13,7 +13,14 @@ project(maxiForth C)  # <- "C" required to set a linker language
 
 set(SRC_FILE ${CMAKE_SOURCE_DIR}/maxiForth.asm)
 set(OBJ_FILE ${CMAKE_BINARY_DIR}/maxiForth.obj)
+set(MAXIFORTH_ROOT "" CACHE PATH "Root for .forth paths")
 
+if (NOT MAXIFORTH_ROOT)
+    message(FATAL_ERROR
+        "MAXIFORTH_ROOT is not set. In CLion: Settings > Build, Execution, "
+        "Deployment > CMake > (profile) > CMake options, add "
+        "-DMAXIFORTH_ROOT=/path/to/your/maxiforth")
+endif()
 # Build the object file from NASM source
 add_custom_command(
         OUTPUT ${OBJ_FILE}
@@ -28,14 +35,25 @@ file(WRITE ${CMAKE_BINARY_DIR}/dummy.c "\n")
 # Add executable from object file
 add_executable(maxiForth ${OBJ_FILE} ${CMAKE_BINARY_DIR}/dummy.c) # ${CMAKE_SOURCE_DIR}/shim.c)
 
-# Copy init.forth next to the exe.
-add_custom_command(
-        TARGET maxiForth POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+# Copy *.forth files with @<variable>@ substitution.
+configure_file(
         ${CMAKE_SOURCE_DIR}/init.forth
-        $<TARGET_FILE_DIR:maxiForth>
-        COMMENT "Copying init.forth next to executable"
+        ${CMAKE_BINARY_DIR}/init.forth
+        @ONLY
 )
+
+configure_file(
+        ${CMAKE_SOURCE_DIR}/custom/custom.forth
+        ${CMAKE_BINARY_DIR}/custom/custom.forth
+        @ONLY
+)
+
+configure_file(
+        ${CMAKE_SOURCE_DIR}/explore/heap-strings.forth
+        ${CMAKE_BINARY_DIR}/explore/heap-strings.forth
+        @ONLY
+)
+
 
 # needed for linking
 target_link_libraries(maxiForth PRIVATE kernel32)
