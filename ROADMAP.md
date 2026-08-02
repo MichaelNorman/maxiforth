@@ -27,7 +27,7 @@ The features are deliberately underspecified.
 
 ## Demo features
 
-### 1) Heap strings
+### 1) ~~Heap strings~~ DONE
 #### Status quo
 The `i"` string creation word currently creates a word at runtime and puts its address onto the stack. The current best
 practice for strings in definitions is to first put your string into a constant, like
