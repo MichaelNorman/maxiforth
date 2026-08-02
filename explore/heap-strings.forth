@@ -32,7 +32,7 @@ i" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
         refill
     repeat
     \ safe to get a character now
-    pib c@ 1 >in !
+    pib c@ 1 >in +!
 ;
 
 var hstr-ptr
@@ -42,21 +42,17 @@ var hstr-index
 32 const hstr-init-size \ starter size for string allocation
 
 : reset-str
-    0 hstr-ptr @ <>
-    if
-        hstr-ptr free
-    then
     0 hstr-ptr !
     hstr-init-size hstr-buff-sz !
     0 hstr-start-ptr !
     0 hstr-index !
 ;
 
-i" Memory allocation failure in heap string. Aborting..." const hstr-mem-alloc-fail
+i" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-alloc-fail
 
 : init-str
     reset-str
-    hstr-buff-sz @ malloc hstr-ptr !
+    hstr-init-size malloc hstr-ptr !
     hstr-ptr @ 0 =
     if
         hstr-mem-alloc-fail type reset-str abort
@@ -67,14 +63,14 @@ i" Memory allocation failure in heap string. Aborting..." const hstr-mem-alloc-f
 : update-str
     hstr-ptr @ 1 cells +
     hstr-start-ptr !
-    hstr-buff-sz @ << 1 hstr-buff-sz !
+    hstr-buff-sz @ 1 <<  hstr-buff-sz !
 ;
 
 : safe-write
     hstr-index @ hstr-buff-sz @ 1 - >=
     if
         hstr-ptr @
-        hstr-buff-sz @ << 1
+        hstr-buff-sz @ 1 <<
         realloc
         hstr-ptr !
         hstr-ptr @ 0 =
@@ -94,26 +90,29 @@ i" Memory allocation failure in heap string. Aborting..." const hstr-mem-alloc-f
     dup 116 = if drop  9 safe-write exit then  \ \t
     dup  34 = if         safe-write exit then  \ \"
     dup  92 = if         safe-write exit then  \ \\
-    cleanup-str bad-esc-msg type abort
+    reset-str bad-esc-msg type abort
 ;
 
-: finish-str
+: finish-string
     0 hstr-start-ptr @ hstr-index @ + c!
     hstr-index @ hstr-ptr @ !
     hstr-ptr @
     reset-str
 ;
 
-: check-quote dup 34 = if true else false then ;
+: check-quote dup 34 = if drop true else false then ;
 
-: check-escape dup backslash = if resolve-escape ;
+: check-escape dup backslash = if true else false then ;
 
-: f"
+: h"
+    skip-space
     init-str
     begin
         safe-read
-        check-quote  if finish-string  exit then
-        check-escape if resolve-escape      else
-                        safe-write          then
+        check-quote  if finish-string exit then
+        check-escape if resolve-escape exit then
+        safe-write
+        true
+    while
     repeat
 ;

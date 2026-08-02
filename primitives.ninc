@@ -1049,29 +1049,45 @@ _fps_size:
 
 _malloc:
     ds_underflow 1
+    enter_call
+    sub rsp, 32
     stack_popq rcx, DATA_TOS_REG
     call malloc
     stack_pushq rax, DATA_TOS_REG ; ptr
+    add rsp, 32
+    leave_call
     jmp _next
 
 _calloc:
     ds_underflow 2
+    enter_call
+    sub rsp, 32
     stack_popq rdx, DATA_TOS_REG ; size
     stack_popq rcx, DATA_TOS_REG ; num
     call calloc
     stack_pushq rax, DATA_TOS_REG ;ptr
+    add rsp, 32
+    leave_call
     jmp _next
 
 _realloc:
     ds_underflow 2
+    enter_call
+    sub rsp, 32
     stack_popq rdx, DATA_TOS_REG ; size
     stack_popq rcx, DATA_TOS_REG ; ptr
     call realloc
     stack_pushq rax, DATA_TOS_REG ; ptr
+    add rsp, 32
+    leave_call
     jmp _next
 
 _free:
     ds_underflow 1
+    enter_call
+    sub rsp, 32
     stack_popq rcx, DATA_TOS_REG ; ptr
     call free
+    add rsp, 32
+    leave_call
     jmp _next
