@@ -1,23 +1,14 @@
 i" Double-free detected! Aborting..." const dbl-free-err
-: cr 10 emit ;
+: lf 10 emit ;
 
 : var-free
     dup @ dup             \ ( ptr-var -- ptr-var ptr ptr)
     0= if                 \ ( ptr-var -- ptr-var ptr )
-        cr dbl-free-err type abort
+        lf dbl-free-err type abort
     then
     free                  \ ( ptr-var ptr -- ptr-var )
     0 swap !              \ ( ptr-var -- <0 stored in ptr-var> )
 ;
-
-var test-var
-\ var creates a thing that puts the address of the cell after it on the stack
-\ calloc returns an address that's been assigned to the requested memory size.
-
-14 1 calloc test-var !
-test-var var-free
-
-\ Design: Heap strings will be allocated on the heap, support a limited set of escape sequences.
 
 \ Safely get a character from the input, regardless of whether the buffer has run out
 : safe-read valid-refill pib c@ 1 >in +! ;
@@ -32,8 +23,6 @@ i" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
 ;
 
 : safe-read
-    \ check if we're at the end or we've encountered a newline character
-    \ if so, refill
     begin
         at-end      if true  else
         pib c@ 10 = if true  else
@@ -63,7 +52,7 @@ var hstr-index
     0 hstr-index !
 ;
 
-i" Memory allocation failure in heap string." const hstr-mem-alloc-fail
+i" Memory allocation failure in heap string. Aborting..." const hstr-mem-alloc-fail
 
 : init-str
     reset-str
