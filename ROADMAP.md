@@ -40,9 +40,10 @@ systems that would fit inside a microcontroller for a washing machine, but probl
 reader, word processor, or what have you.
 
 #### Feature
-Strings that are allocated on the heap. The `h"` word takes a variable from the stack and saves its string pointer to
-it after it's done reading. The variable lives forever, but the string can be freed with `var-free`, which both checks
-for 0 before freeing and aborts with an error if it encounters a `0` in the variable.
+Strings that are allocated on the heap. The `h"` ~~word takes a variable from the stack and saves its string pointer to
+it after it's done reading~~ leaves the heap address of the allocated string on the stack. ~~The variable lives forever,
+but the string can be freed with `var-free`, which both checks for 0 before freeing and aborts with an error if it 
+encounters a `0` in the variable.~~
 
 ### 2) Runtime DLL loading
 #### Status quo

@@ -84,19 +84,31 @@ i" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-all
 ;
 
 : resolve-escape
-    dup  97 = if drop    exit then             \ \a
-    dup 110 = if drop 10 safe-write exit then  \ \n
-    dup 114 = if drop 13 safe-write exit then  \ \r
-    dup 116 = if drop  9 safe-write exit then  \ \t
-    dup  34 = if         safe-write exit then  \ \"
-    dup  92 = if         safe-write exit then  \ \\
+    dup  97 = if drop    exit then  \ \a
+    dup 110 = if drop 10 exit then  \ \n
+    dup 114 = if drop 13 exit then  \ \r
+    dup 116 = if drop  9 exit then  \ \t
+    dup  34 = if         exit then  \ \"
+    dup  92 = if         exit then  \ \\
+    hstr-ptr @ free
     reset-str bad-esc-msg type abort
+;
+
+: fit-str dup @ 1 cells + 1 + ;
+: realloc-fit
+    dup fit-str realloc
+    dup 0 =
+    if
+        hstr-mem-alloc-fail type drop free abort
+    else
+        swap drop
+    then
 ;
 
 : finish-string
     0 hstr-start-ptr @ hstr-index @ + c!
     hstr-index @ hstr-ptr @ !
-    hstr-ptr @
+    hstr-ptr @ realloc-fit
     reset-str
 ;
 
@@ -109,10 +121,12 @@ i" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-all
     init-str
     begin
         safe-read
-        check-quote  if finish-string exit then
-        check-escape if resolve-escape exit then
+        check-quote  if finish-string  exit then
+        check-escape if drop safe-read resolve-escape then
         safe-write
         true
     while
     repeat
 ;
+
+: f-strlen @ ;
