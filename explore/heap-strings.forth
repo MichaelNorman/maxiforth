@@ -46,25 +46,56 @@ i" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
     pib c@ 1 >in !
 ;
 
-var hstr-buff-sz
 var hstr-ptr
 var hstr-start-ptr
+var hstr-buff-sz
 var hstr-index
+32 const hstr-init-size \ starter size for string allocation
+
+: reset-str
+    0 hstr-ptr @ <>
+    if
+        hstr-ptr free
+    then
+    0 hstr-ptr !
+    hstr-init-size hstr-buff-sz !
+    0 hstr-start-ptr !
+    0 hstr-index !
+;
 
 i" Memory allocation failure in heap string." const hstr-mem-alloc-fail
 
-: safe-write
-    hstr-index @ 0 =
+: init-str
+    reset-str
+    hstr-buff-sz @ malloc hstr-ptr !
+    hstr-ptr @ 0 =
     if
-        hstr-mem-alloc-fail type abort
+        hstr-mem-alloc-fail type reset-str abort
     then
+    hstr-ptr @ 1 cells + hstr-start-ptr !
+;
 
-    hstr-index @ hstr-buff-sz @ >=
+: update-str
+    hstr-ptr @ 1 cells +
+    hstr-start-ptr !
+    hstr-buff-sz @ << 1 hstr-buff-sz !
+;
+
+: safe-write
+    hstr-index @ hstr-buff-sz @ 1 - >=
     if
-        hstr-ptr @ realloc
-        0 =
+        hstr-ptr @
+        hstr-buff-sz @ << 1
+        realloc
+        hstr-ptr !
+        hstr-ptr @ 0 =
         if
-
+            hstr-mem-alloc-fail type reset-str abort
+        then
+    then
+    update-str
+    hstr-start-ptr @ hstr-index @ + c!
+    1 hstr-index +!
 ;
 
 : resolve-escape
@@ -77,21 +108,22 @@ i" Memory allocation failure in heap string." const hstr-mem-alloc-fail
     cleanup-str bad-esc-msg type abort
 ;
 
+: finish-str
+    0 hstr-start-ptr @ hstr-index @ + c!
+    hstr-index @ hstr-ptr @ !
+    hstr-ptr @
+    reset-str
+;
+
 : check-quote dup 34 = if true else false then ;
 
 : check-escape dup backslash = if resolve-escape ;
 
 : f"
-    h-str-ptr !
-    h-str-buff-sz !
-    h-str-ptr @ 1 cells + h-str-start-ptr !
-
-    swap
-
+    init-str
     begin
         safe-read
         check-quote  if finish-string  exit then
-
         check-escape if resolve-escape      else
                         safe-write          then
     repeat
