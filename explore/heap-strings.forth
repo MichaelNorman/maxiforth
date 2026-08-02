@@ -19,22 +19,80 @@ test-var var-free
 
 \ Design: Heap strings will be allocated on the heap, support a limited set of escape sequences.
 
-\ `escaping` defaults to zero. This is a state variable that gets turned on when `\` is encountered. Backspace
-\ clears it if the user has pressed ENTER immediately after typing `\`.
-var escaping
 \ Safely get a character from the input, regardless of whether the buffer has run out
-: safe-read ;
+: safe-read valid-refill pib c@ 1 >in +! ;
 
-: resolve-escape
-    dup 110 = if drop 10 exit then
-    dup 114 = if drop 13 exit then
-    dup 116 = if drop 9 exit then
-    dup  34 = if exit then
-    dup  92 = if exit then
-    0 escaping !
+92 const backslash
+
+i" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
+
+: free-str
+    drop \ character on the stack above the pointer
+    var-free
 ;
 
-\ Safely write a character to the string, calling realloc if necessary
-: safe-write ;
+: safe-read
+    \ check if we're at the end or we've encountered a newline character
+    \ if so, refill
+    begin
+        at-end      if true  else
+        pib c@ 10 = if true  else
+        pib c@ 13 = if true  else
+                       false then then then
+    while
+        refill
+    repeat
+    \ safe to get a character now
+    pib c@ 1 >in !
+;
 
-: handle-buffer-start escaping @ invert if exit then safe-read dup 8 = if 0 escaping ! else safe-write then ;
+var hstr-buff-sz
+var hstr-ptr
+var hstr-start-ptr
+var hstr-index
+
+i" Memory allocation failure in heap string." const hstr-mem-alloc-fail
+
+: safe-write
+    hstr-index @ 0 =
+    if
+        hstr-mem-alloc-fail type abort
+    then
+
+    hstr-index @ hstr-buff-sz @ >=
+    if
+        hstr-ptr @ realloc
+        0 =
+        if
+
+;
+
+: resolve-escape
+    dup  97 = if drop    exit then             \ \a
+    dup 110 = if drop 10 safe-write exit then  \ \n
+    dup 114 = if drop 13 safe-write exit then  \ \r
+    dup 116 = if drop  9 safe-write exit then  \ \t
+    dup  34 = if         safe-write exit then  \ \"
+    dup  92 = if         safe-write exit then  \ \\
+    cleanup-str bad-esc-msg type abort
+;
+
+: check-quote dup 34 = if true else false then ;
+
+: check-escape dup backslash = if resolve-escape ;
+
+: f"
+    h-str-ptr !
+    h-str-buff-sz !
+    h-str-ptr @ 1 cells + h-str-start-ptr !
+
+    swap
+
+    begin
+        safe-read
+        check-quote  if finish-string  exit then
+
+        check-escape if resolve-escape      else
+                        safe-write          then
+    repeat
+;

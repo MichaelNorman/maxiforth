@@ -197,13 +197,14 @@ create 'lit ' lit , \ put lit into the dictionary
 : resolve-char
     next-rchar
     dup 110 = if drop 10 exit then
-    dup 116 = if drop 9  exit then
-    dup 34  = if exit then
-    dup 92  = if exit then
+    dup 114 = if drop 13 exit then
+    dup 116 = if drop  9 exit then
+    dup 34  = if         exit then
+    dup 92  = if         exit then
 ;
 
 : i" \ runtime string, as opposed to a compile-time string
-    here dup 0 ,
+    here dup 0 ,                                \ skip length word to first character byte
     begin next-rchar dup 32 = while drop repeat \ skip leading spaces
     begin
         dup 34 = if        \ hit the bare quote
@@ -323,6 +324,7 @@ var stackp
 
 \ files
 
+\ mode strings are passed to C, so skip the count word
 : cell+ 1 cells + ;
 : mode: cell+ const ;
 i" rt" mode: m_rt
