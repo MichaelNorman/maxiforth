@@ -176,8 +176,6 @@ section .data
             dq cfa_lit          ; ^
             dq cfa_comma        ; ( int cfa_lit -- int <compiile cfa_lit> )
             dq cfa_comma        ; (int -- <compile int> )
-            ; dq cfa_comma        ; (int -- <compile the number>) TODO: check this slop
-            ; branch .begin
             dq cfa_branch       ; ( -- <jmp begin> )
             dq .begin - $
         .run_it:
@@ -477,7 +475,7 @@ get_init:
         jmp .ret
     .long_filename:
         call error_init_long_filename
-        ; jmp .ret FALL THROUGH
+
 ; presumes that the address of the word buffer has been loaded into r8
 _find:
     push rbp

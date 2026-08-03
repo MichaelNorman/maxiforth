@@ -1,14 +1,9 @@
-i" Double-free detected! Aborting..." const dbl-free-err
-: lf 10 emit ;
-
-: var-free
-    dup @ dup             \ ( ptr-var -- ptr-var ptr ptr)
-    0= if                 \ ( ptr-var -- ptr-var ptr )
-        lf dbl-free-err type abort
-    then
-    free                  \ ( ptr-var ptr -- ptr-var )
-    0 swap !              \ ( ptr-var -- <0 stored in ptr-var> )
-;
+\ Heap strings: h"
+\ These are strings that are allocated onto the heap. They slurp everything up to the
+\ first following unescaped `"`. The memory in which the string lives is trimmed to
+\ fit the string exactly. These strings have a leading qword, 8 bytes, that contains
+\ the length of the string, not including the null terminator. These strings are also
+\ null-terminated for compatibility with C.
 
 \ Safely get a character from the input, regardless of whether the buffer has run out
 : safe-read valid-refill pib c@ 1 >in +! ;
@@ -16,11 +11,6 @@ i" Double-free detected! Aborting..." const dbl-free-err
 92 const backslash
 
 i" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
-
-: free-str
-    drop \ character on the stack above the pointer
-    var-free
-;
 
 : safe-read
     begin
@@ -128,5 +118,3 @@ i" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-all
     while
     repeat
 ;
-
-: f-strlen @ ;

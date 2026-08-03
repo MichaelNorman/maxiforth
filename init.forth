@@ -363,10 +363,16 @@ i" \nFile pointer stack overflow.\n" const fpov-msg
 
 : include prepare-name open-include push-handle ;
 
-\ heap strings: "
-\ Heap strings will be runtime strings only, just like i"-strings
-\ " will take a variable and assign its address to the variable
-\ ptr-free will do two things: abort if the variable contains 0, or free and write 0
+: lf 10 emit ;
+i" Double-free detected! Aborting..." const dbl-free-err
+: var-free
+    dup @ dup             \ ( ptr-var -- ptr-var ptr ptr)
+    0= if                 \ ( ptr-var -- ptr-var ptr )
+        lf dbl-free-err type abort
+    then
+    free                  \ ( ptr-var ptr -- ptr-var )
+    0 swap !              \ ( ptr-var -- <0 stored in ptr-var> )
+;
 
 include @MAXIFORTH_ROOT@\custom\custom.forth
 
