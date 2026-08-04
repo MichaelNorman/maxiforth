@@ -49,11 +49,16 @@ configure_file(
 )
 
 configure_file(
-        ${CMAKE_SOURCE_DIR}/explore/heap-strings.forth
-        ${CMAKE_BINARY_DIR}/explore/heap-strings.forth
+        ${CMAKE_SOURCE_DIR}/custom/heap-strings.forth
+        ${CMAKE_BINARY_DIR}/custom/heap-strings.forth
         @ONLY
 )
 
+configure_file(
+        ${CMAKE_SOURCE_DIR}/explore/dll.forth
+        ${CMAKE_BINARY_DIR}/explore/dll.forth
+        @ONLY
+)
 
 # needed for linking
 target_link_libraries(maxiForth PRIVATE kernel32)
