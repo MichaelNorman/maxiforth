@@ -182,9 +182,23 @@
     push r9
     push r10
     push r11
+    sub rsp, 96
+    movdqu [rsp], xmm0
+    movdqu [rsp+16], xmm1
+    movdqu [rsp+32], xmm2
+    movdqu [rsp+48], xmm3
+    movdqu [rsp+64], xmm4
+    movdqu [rsp+80], xmm5
 %endmacro
 
 %macro c_reg_restore 0
+    movdqu xmm5, [rsp+80]
+    movdqu xmm4, [rsp+64]
+    movdqu xmm3, [rsp+48]
+    movdqu xmm2, [rsp+32]
+    movdqu xmm1, [rsp+16]
+    movdqu xmm0, [rsp]
+    add rsp, 96
     pop r11
     pop r10
     pop r9

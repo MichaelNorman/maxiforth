@@ -84,6 +84,7 @@ section .data
     cfa_pause:                  dq _pause
     cfa_ok:                     dq _ok
     cfa_wbuf:                   dq push_wbuf
+    cfa_dovar:                  dq _dovar
 
     align 16
     static_dictionary:
@@ -213,7 +214,9 @@ section .data
             dq cfa_drop         ; ( addr -- <fall through> )
         .exit:
             dq cfa_exit         ; ( -- <return to outer> )
-    regular_entry _quit, "abort", _abort
+    regular_entry _interpret, "lla", _lla
+    regular_entry _lla, "gpa", _gpa
+    regular_entry _gpa, "abort", _abort
     regular_entry _abort, "fps", _fps
     regular_entry _fps, "fptos", _fp_tos
     regular_entry _fp_tos, "szfps", _fps_size
@@ -370,6 +373,8 @@ section .text
     extern calloc
     extern realloc
     extern free
+    extern LoadLibraryA
+    extern GetProcAddress
 
 main:
     enter_call
