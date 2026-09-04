@@ -14,7 +14,7 @@ On the other end of the spectrum are interpreted languages like Python, JavaScri
 
 One of the first goals of `init.forth` is to create the compilation words `:` and `'`.
 
-## The format of a forth word
+## The format of a Forth word
 
 `init.forth` begins rather cryptically with a line that lays items down directly into memory using, among others, the `,` word. (More on `,` later.) The items being laid down fit the format of the header of a Forth word. This format looks like:
 
