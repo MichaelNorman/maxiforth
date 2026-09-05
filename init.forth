@@ -203,8 +203,10 @@ create 'lit ' lit , \ put lit into the dictionary
     dup 92  = if         exit then
 ;
 
-: i" \ runtime string, as opposed to a compile-time string
-    here dup 0 ,                                \ skip length word to first character byte
+\ dictionary string, as opposed to a heap string.
+:  d"
+    here dup 0 ,                                \ skip length word to first character byte and
+                                                \ leave a copy of the start address
     begin next-rchar dup 32 = while drop repeat \ skip leading spaces
     begin
         dup 34 = if        \ hit the bare quote
@@ -251,7 +253,7 @@ var neg
 \ digit-string gives you the address of the string directly
 var digit-string
 here 1 cells - dp !
-i" 0123456789abcdef"
+ d" 0123456789abcdef"
 sp@ 1 cells - sp! \ we already know where this lives.
 
 \ fetch the ASCII for the digit, regardless of base (up to 16)
@@ -327,12 +329,12 @@ var stackp
 \ mode strings are passed to C, so skip the count word
 : cell+ 1 cells + ;
 : mode: cell+ const ;
-i" rt" mode: m_rt
-i" rb" mode: m_rb
+ d" rt" mode: m_rt
+ d" rb" mode: m_rb
 
 \ include
 
-i" \nFile pointer stack overflow.\n" const fpov-msg
+ d" \nFile pointer stack overflow.\n" const fpov-msg
 
 : on-space pib c@ 32 = ;
 : inc-in 1 >in +! ;
@@ -364,7 +366,7 @@ i" \nFile pointer stack overflow.\n" const fpov-msg
 : include prepare-name open-include push-handle ;
 
 : lf 10 emit ;
-i" Double-free detected! Aborting..." const dbl-free-err
+ d" Double-free detected! Aborting..." const dbl-free-err
 : var-free
     dup @ dup             \ ( ptr-var -- ptr-var ptr ptr)
     0= if                 \ ( ptr-var -- ptr-var ptr )

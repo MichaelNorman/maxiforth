@@ -10,7 +10,7 @@
 
 92 const backslash
 
-i" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
+ d" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
 
 : safe-read
     begin
@@ -38,7 +38,7 @@ var hstr-index
     0 hstr-index !
 ;
 
-i" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-alloc-fail
+d" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-alloc-fail
 
 : init-str
     reset-str
