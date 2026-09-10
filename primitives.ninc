@@ -41,9 +41,9 @@ _dovar:
 _do_does:
     ds_overflow 1
     rs_overflow 1
-    lea r8, [W_REG + 2*POINTER_SIZE] ; location of PFA that contains the data that does will use.
-    stack_pushq r8, DATA_TOS_REG            ; leave it on the data stack for safekeeping
-    stack_pushq IP_REG, RETURN_TOS_REG      ;
+    lea r8, [W_REG + 2*POINTER_SIZE]      ; location of PFA that contains the data that does will use.
+    stack_pushq r8, DATA_TOS_REG          ; leave it on the data stack for safekeeping
+    stack_pushq IP_REG, RETURN_TOS_REG
     mov IP_REG, [W_REG + POINTER_SIZE]
     jmp _next
 
@@ -1105,24 +1105,289 @@ _gpa:
     stack_pushq r8, DATA_TOS_REG
     jmp _next
 
-; callN signature strings can be represented with the following regex: [qduvB](\|[if]*)?
+_bound_call:
+    jmp _next
+
+; bind signature strings can be represented with the following regex: [qduv](\|[if]*)?
 ; In other words, they have to specify a return type, and each input argument is specified as an integer or float.
 ; The table below shows the meanings of the different spedifiers
 ; ___________________________________________________________________________________________
 ; | Code | Meaning                                                         | Valid position |
 ; |------|-----------------------------------------------------------------|----------------|
 ; |  v   | void. No return value. Push nothing onto the stack.             | return only    |
-; |  B   | big struct. Pointer to struct over 8 bytes. Pointer is pushed.  | return only    |
 ; |  q   | qword. Full-width integer value from rax. Pushed.               | return only    |
 ; |  d   | dword. 32-bit signed integer value from eax. Pushed.            | return only    |
 ; |  u   | unsigned dword. 32-bit unsigned integer value from eax. Pushed. | return only    |
-; |  f   | float/double. Returned in xmm0. Accepted in xmmN. Pushed.       | return/arg     |
+; |  f   | 32-bit float. Returned in xmm0. Accepted in xmmN. Pushed.       | return/arg     |
+; |  F   | 64-bit float. Returned in xmm0. Accepted in xmmN. Pushed.       | return/arg     |
 ; |  i   | integer, any size. Returned in rax. Pushed.                     | argument only  |
 ; |______|_________________________________________________________________|________________|
 
 
-; this is a gigantic mmess that doesn't begin to cover the full complexity.
-_call:
+; `bind` creates a word that marshals the arguments according to the signature string.
+; Decisions that need to be made:
+;   * Whether 'B' is present in the signature. If it is, then the register mapping is bumped by 1.
+;   * The size of the shadow space. For every other argument past 4 (or 3?), more shadow space must be reserved in
+;     16-byte chunks, I think...
+;
+; ( callee_addr sig_addr -- <name that follows `bind` on the input is a word that marshals according to sig_addr> )
 
+_arg1u:
+    stack_popq r10, DATA_TOS_REG ; value
+    mov ecx, r10d
     jmp _next
 
+_arg1q:
+    stack_popq rcx, DATA_TOS_REG
+    jmp _next
+
+_arg1d:
+    stack_popq r10, DATA_TOS_REG
+    movsxd rcx, r10d
+    jmp _next
+
+_arg1f:
+    stack_popq r11, DATA_TOS_REG
+    movd xmm0, r11d
+    jmp _next
+
+_arg1F:
+    stack_popq r10, DATA_TOS_REG
+    movq xmm0, r10
+    jmp _next
+
+_arg2u:
+    stack_popq r10, DATA_TOS_REG ; value
+    mov edx, r10d
+    jmp _next
+
+_arg2q:
+    stack_popq rdx, DATA_TOS_REG
+    jmp _next
+
+_arg2d:
+    stack_popq r10, DATA_TOS_REG
+    movsxd rdx, r10d
+    jmp _next
+
+_arg2f:
+    stack_popq r11, DATA_TOS_REG
+    movd xmm1, r11d
+    jmp _next
+
+_arg2F:
+    stack_popq r10, DATA_TOS_REG
+    movq xmm1, r10
+    jmp _next
+
+_arg3u:
+    stack_popq r10, DATA_TOS_REG ; value
+    mov r8d, r10d
+    jmp _next
+
+_arg3q:
+    stack_popq r8, DATA_TOS_REG
+    jmp _next
+
+_arg3d:
+    stack_popq r10, DATA_TOS_REG
+    movsxd r8, r10d
+    jmp _next
+
+_arg3f:
+    stack_popq r11, DATA_TOS_REG
+    movd xmm2, r11d
+    jmp _next
+
+_arg3F:
+    stack_popq r10, DATA_TOS_REG
+    movq xmm2, r10
+    jmp _next
+
+_arg4u:
+    stack_popq r10, DATA_TOS_REG ; value
+    mov r9d, r10d
+    jmp _next
+
+_arg4q:
+    stack_popq r9, DATA_TOS_REG
+    jmp _next
+
+_arg4d:
+    stack_popq r10, DATA_TOS_REG
+    movsxd r9, r10d
+    jmp _next
+
+_arg4f:
+    stack_popq r11, DATA_TOS_REG
+    movd xmm3, r11d
+    jmp _next
+
+_arg4F:
+    stack_popq r10, DATA_TOS_REG
+    movq xmm3, r10
+    jmp _next
+
+_bind_arg1:
+    ; r10b contains the type specifier
+    mov rdi, [rel here]
+    cmp r10b, 'q'
+    jne .check_d
+    lea rax, [rel _arg1q]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_d:
+    cmp r10b, 'd'
+    jne .check_u
+    lea rax, [rel _arg1d]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_u:
+    cmp r10b, 'u'
+    jne .check_f
+    lea rax, [rel _arg1u]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_f:
+    cmp r10b, 'f'
+    jne .do_F
+    lea rax, [rel _arg1f]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .do_F: ; no check. `bind` sets this up, so it's already checked.
+    lea rax, [rel _arg1F]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+
+_bind_arg2:
+    ; r10b contains the type specifier
+    mov rdi, [rel here]
+    cmp r10b, 'q'
+    jne .check_d
+    lea rax, [rel _arg2q]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_d:
+    cmp r10b, 'd'
+    jne .check_u
+    lea rax, [rel _arg2d]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_u:
+    cmp r10b, 'u'
+    jne .check_f
+    lea rax, [rel _arg2u]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_f:
+    cmp r10b, 'f'
+    jne .do_F
+    lea rax, [rel _arg2f]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .do_F: ; no check. `bind` sets this up, so it's already checked.
+    lea rax, [rel _arg2F]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+
+_bind_arg3:
+    ; r10b contains the type specifier
+    mov rdi, [rel here]
+    cmp r10b, 'q'
+    jne .check_d
+    lea rax, [rel _arg3q]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_d:
+    cmp r10b, 'd'
+    jne .check_u
+    lea rax, [rel _arg3d]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_u:
+    cmp r10b, 'u'
+    jne .check_f
+    lea rax, [rel _arg3u]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_f:
+    cmp r10b, 'f'
+    jne .do_F
+    lea rax, [rel _arg3f]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .do_F: ; no check. `bind` sets this up, so it's already checked.
+    lea rax, [rel _arg3F]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+
+_bind_arg4:
+    ; r10b contains the type specifier
+    mov rdi, [rel here]
+    cmp r10b, 'q'
+    jne .check_d
+    lea rax, [rel _arg4q]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_d:
+    cmp r10b, 'd'
+    jne .check_u
+    lea rax, [rel _arg4d]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_u:
+    cmp r10b, 'u'
+    jne .check_f
+    lea rax, [rel _arg4u]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .check_f:
+    cmp r10b, 'f'
+    jne .do_F
+    lea rax, [rel _arg4f]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+    .do_F: ; no check. `bind` sets this up, so it's already checked.
+    lea rax, [rel _arg4F]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+
+_lr10:
+    ds_underflow 1
+    stack_popq r10, DATA_TOS_REG
+    mov qword r10, [r10]
+    jmp _next
+
+_rr10:
+    ds_overflow 1
+    stack_pushq r10, DATA_TOS_REG
+    jmp _next
+
+_bind_stack_args: ; +args
+    jmp _next
+
+_movrsp:
+    ds_underflow 1
+    stack_popq r10, DATA_TOS_REG
+    sub rsp, r10
+    jmp _next

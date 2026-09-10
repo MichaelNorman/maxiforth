@@ -214,9 +214,13 @@ section .data
             dq cfa_drop         ; ( addr -- <fall through> )
         .exit:
             dq cfa_exit         ; ( -- <return to outer> )
-    regular_entry _interpret, "lla", _lla
-    regular_entry _lla, "gpa", _gpa
-    regular_entry _gpa, "abort", _abort
+    regular_entry _interpret, "lla", _lla ; LoadLibraryA
+    regular_entry _lla, "arg4", _bind_arg4
+    regular_entry _bind_arg4, "arg3", _bind_arg3
+    regular_entry _bind_arg3, "arg2", _bind_arg2
+    regular_entry _bind_arg2, "arg1", _bind_arg1
+    regular_entry _bind_arg1, "gpa", _gpa
+    regular_entry _gpa, "abort", _abort ; GetProcAddress
     regular_entry _abort, "fps", _fps
     regular_entry _fps, "fptos", _fp_tos
     regular_entry _fp_tos, "szfps", _fps_size
@@ -313,8 +317,11 @@ section .data
     regular_entry _calloc, "realloc", _realloc
     regular_entry _realloc, "free", _free
     regular_entry _free, "wbuf", push_wbuf
+    regular_entry push_wbuf, "lr10", _lr10
+    regular_entry _lr10, "rr10", _rr10
+    regular_entry _rr10, "movrsp", _movrsp
     initial_latest:
-    regular_entry push_wbuf, "accept", _accept
+    regular_entry _movrsp, "accept", _accept
 
 section .bss
     alignb 16
@@ -418,7 +425,7 @@ main:
     jmp _next
     
     .fault:
-    leave_call ; will never get here. Should do leave_call in bye or its equivalent
+    leave_call
     ret
     .init_file_no_exist:
     call _errno
