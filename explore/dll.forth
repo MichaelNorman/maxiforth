@@ -1,27 +1,41 @@
 \ Runtime DLL loading
+
 \ The arg1-arg4 primitives read their input from r10b.
 \ `rr10` and `lr10` are the new register manipulation words for r10.
 
 \ ( callee signature -- <takes word off of input, creates dictionary entry for word that calls callee with args
 \                       marshaled a la signature> )
 
-\ bind signature strings can be represented with the following regex: [qduv](\|[if]*)?
-\ In other words, they have to specify a return type, and each input argument is specified as an integer or float.
-\ The table below shows the meanings of the different spedifiers
-\ ___________________________________________________________________________________________
-\ | Code | Meaning                                                         | Valid position |
-\ |------|-----------------------------------------------------------------|----------------|
-\ |  v   | void. No return value. Push nothing onto the stack.             | return only    |
-\ |  q   | qword. Full-width integer value from rax. Pushed.               | return only    |
-\ |  d   | dword. 32-bit signed integer value from eax. Pushed.            | return only    |
-\ |  u   | unsigned dword. 32-bit unsigned integer value from eax. Pushed. | return only    |
-\ |  f   | 32-bit float. Returned in xmm0. Accepted in xmmN. Pushed.       | return/arg     |
-\ |  F   | 64-bit float. Returned in xmm0. Accepted in xmmN. Pushed.       | return/arg     |
-\ |  i   | integer, any size. Returned in rax. Pushed.                     | argument only  |
-\ |______|_________________________________________________________________|________________|
+\ bind signature can be represented by: [vqdufF](\|[ifF]*)?
+\ A return code is mandatory; the optional |-suffix lists argument codes, one per
+\ argument, in call order.
+\ _______________________________________________________________________________________
+\ | Code | Meaning                                                     | Valid position |
+\ |------|-------------------------------------------------------------|----------------|
+\ |  v   | void. No return value. Push nothing.                        | return only    |
+\ |  q   | qword. Full 64 bits of rax. Pushed.                         | return only    |
+\ |  d   | dword. eax, sign-extended to a cell. Pushed.                | return only    |
+\ |  u   | dword. eax, zero-extended to a cell. Pushed.                | return only    |
+\ |  i   | integer or pointer, any width. Cell moved whole to the      | argument only  |
+\ |      | parameter register; upper bits are the callee's business.   |                |
+\ |  f   | 32-bit float. Returned in xmm0, passed in xmmN. Pushed.     | return/arg     |
+\ |  F   | 64-bit float. Returned in xmm0, passed in xmmN. Pushed.     | return/arg     |
+\ |______|_____________________________________________________________|________________|
+\
+\ Narrowing, masking, and boolean conversion (Forth true is -1, not 1) are the
+\ caller's job, done in Forth before the call.
+
+var numargs
+: countargs dup \ need a copy of the pointer to the string later to set the return behavior
+
+;
 
 : bind create here 16 - dp ! find docol @ , 0 ,
-    \ Get the size of the string, which is implicitly the size of the argument list. (It's two less than the length.)
-    \
+    \ Get the number of arguments.
+    \ place binder tokens for all args present
+    \ place token to move rsp
+    \ place tokens to bind extra args, if present
+    \ place token for call
+    \ place token for pushing return value, if present
     ' exit ,
 ;

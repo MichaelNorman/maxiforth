@@ -85,6 +85,32 @@ section .data
     cfa_ok:                     dq _ok
     cfa_wbuf:                   dq push_wbuf
     cfa_dovar:                  dq _dovar
+    
+    ; private words for binding. Might move these later
+    cfa_arg1u:                  dq _arg1u
+    cfa_arg1i:                  dq _arg1i
+    cfa_arg1q:                  dq _arg1q
+    cfa_arg1d:                  dq _arg1d
+    cfa_arg1f:                  dq _arg1f
+    cfa_arg1F:                  dq _arg1F
+    cfa_arg2u:                  dq _arg2u
+    cfa_arg2i:                  dq _arg2i
+    cfa_arg2q:                  dq _arg2q
+    cfa_arg2d:                  dq _arg2d
+    cfa_arg2f:                  dq _arg2f
+    cfa_arg2F:                  dq _arg2F
+    cfa_arg3u:                  dq _arg3u
+    cfa_arg3i:                  dq _arg3i
+    cfa_arg3q:                  dq _arg3q
+    cfa_arg3d:                  dq _arg3d
+    cfa_arg3f:                  dq _arg3f
+    cfa_arg3F:                  dq _arg3F
+    cfa_arg4u:                  dq _arg4u
+    cfa_arg4i:                  dq _arg4i
+    cfa_arg4q:                  dq _arg4q
+    cfa_arg4d:                  dq _arg4d
+    cfa_arg4f:                  dq _arg4f
+    cfa_arg4F:                  dq _arg4F
 
     align 16
     static_dictionary:
