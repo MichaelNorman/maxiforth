@@ -241,11 +241,11 @@ section .data
         .exit:
             dq cfa_exit         ; ( -- <return to outer> )
     regular_entry _interpret, "lla", _lla ; LoadLibraryA
-    regular_entry _lla, "arg4", _bind_arg4
-    regular_entry _bind_arg4, "arg3", _bind_arg3
-    regular_entry _bind_arg3, "arg2", _bind_arg2
-    regular_entry _bind_arg2, "arg1", _bind_arg1
-    regular_entry _bind_arg1, "gpa", _gpa
+    regular_entry _lla, "arg4", bind_arg4
+    regular_entry bind_arg4, "arg3", bind_arg3
+    regular_entry bind_arg3, "arg2", bind_arg2
+    regular_entry bind_arg2, "arg1", bind_arg1
+    regular_entry bind_arg1, "gpa", _gpa
     regular_entry _gpa, "abort", _abort ; GetProcAddress
     regular_entry _abort, "fps", _fps
     regular_entry _fps, "fptos", _fp_tos
@@ -342,12 +342,13 @@ section .data
     regular_entry _malloc, "calloc", _calloc
     regular_entry _calloc, "realloc", _realloc
     regular_entry _realloc, "free", _free
-    regular_entry _free, "wbuf", push_wbuf
-    regular_entry push_wbuf, "lr10", _lr10
-    regular_entry _lr10, "rr10", _rr10
-    regular_entry _rr10, "movrsp", _movrsp
+    regular_entry _free, "movrsp", _movrsp
+    regular_entry _movrsp, "bindrargs", _bindrargs
+    regular_entry _bindrargs, "rsp", _rsp
+    regular_entry _rsp, "rt_call", _rt_call
+    regular_entry _rt_call, "wbuf", push_wbuf
     initial_latest:
-    regular_entry _movrsp, "accept", _accept
+    regular_entry push_wbuf, "accept", _accept
 
 section .bss
     alignb 16

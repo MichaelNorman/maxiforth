@@ -25,17 +25,107 @@
 \ Narrowing, masking, and boolean conversion (Forth true is -1, not 1) are the
 \ caller's job, done in Forth before the call.
 
-var numargs
-: countargs dup \ need a copy of the pointer to the string later to set the return behavior
+\ construct a number string from the bits after the pointer, presuming it's a null-terminated string
+var numstr 32 allot \ guess that the dictionary is already aligned to 16 bytes
 
+var x
+: cstr2numstr
+    0 x !
+    begin
+        x 31 <
+        dup x + c@ 0 <>
+        and
+    while
+        dup x @ + c@ \ character at the offset
+        1 x @ + x !
+        numstr x @ + c!
+    repeat
+    x @ numstr !
 ;
 
+\ ( psigspec -- psigspec argcount )
+: countargs dup
+    @ 2 - \ get the length from "X|xxxxN"
+    5 = if
+        dup 14 + cstr2numstr >number 4 +
+    else
+        dup @ 2 -
+    then
+;
+
+: max dup rot dup rot - 0 < if drop else swap drop then ;
+: min dup rot dup rot - 0 < if swap drop else drop then ;
+
+: make-offset dup 2 mod + 3 << 32 max ;
+
+var offset
+var stackargs
+var regargs
+
+\ ( psigspec -- psigspec < regargs, stackargs, and offset calculated and stored> )
+: config-bind
+    countargs
+    dup 4 <
+    if
+        dup regargs !
+        0 stackargs !
+    else
+        4 regargs !
+        dup 4 - stackargs !
+    then
+    make-offset offset !
+;
+
+\ runtime stack argument copier. Reads the number of argument to copy from the next cell
+\ ( arg1 [arg2 [arg3 [arg4] ] ] -- < args loaded onto stack > )
+: movsargs
+    r>                 \ get the return address, which is the address of the next cell
+    dup 8 + >r         \ put the skipped return slot back
+    @ dup              \ get the number of bytes to shave off the stack (The number of bytes to copy.)
+    sp@ - rsp 32 + rot \ set up the stack for cmove
+    cmove
+    sp@ swap - dp !    \ finish our "pop" operation
+;
+
+\ ( argcount -- < XT(movsargs) and the number of arguments to move laid into bound word > )
+\ This is a run-time word and so does not affect `bind`'s stack picture.
+: bindsargs
+    ' movsargs ,
+    3 << ,
+;
+
+: rettype 8 + c@ ;
+
+\ ( pfunc psigspec - < binding created for for pfunc with the dictionary entry supplied by the user> )
 : bind create here 16 - dp ! find docol @ , 0 ,
-    \ Get the number of arguments.
-    \ place binder tokens for all args present
-    \ place token to move rsp
-    \ place tokens to bind extra args, if present
-    \ place token for call
-    \ place token for pushing return value, if present
-    ' exit ,
+    config-bind
+    ['] movrsp ,
+    offset  @ ,
+
+    stackargs @ 0 >
+    if
+       stackargs @ bindsargs
+    then
+
+    regargs @ 0 >
+    if
+        regargs @ bindrargs
+    then
+
+    ['] rt_call ,
+    swap ,
+
+    rettype \ consume psigspec (config-bind is a no-op on the stack)
+    118 ne
+    if
+        rettype
+        setret
+    then
+
+    ['] movrsp ,
+    0 offset @ - ,
+    ['] exit ,
+    0 regargs !
+    0 stackargs !
+    0 offset !
 ;

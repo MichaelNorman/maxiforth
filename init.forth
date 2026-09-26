@@ -225,6 +225,9 @@ create 'lit ' lit , \ put lit into the dictionary
     repeat
 ;
 
+\ get the offset from a Forth string to the start of the embedded C string
+: cstr 8 + ;
+
 : nl 10 emit ;
 
 \ ./.s/u./.r

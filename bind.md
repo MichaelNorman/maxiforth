@@ -2,7 +2,7 @@
 
 ## Introduction and context
 
-An important core part of 64-bit Windows programming is calling into the Windows library. In addition, using any external C library, or a library in any language that provides a C interface, is being able to match the 64-bit Windows calling convention. Doing this on a per-word basis is time-consuming and error-prone. Better to spend all the time and debugging in one place, a `bind` word that lets you emit `call` on a function pointer with the arguments loaded and inspect the results on the stack.
+An important core part of 64-bit Windows programming is calling into the Windows library. In addition, using any external C library, or a library in any language that provides a C interface, requires being able to match the 64-bit Windows calling convention. Doing this on a per-word basis is time-consuming and error-prone. Better to spend all the time and debugging in one place, a `bind` word that emits `call` for you on a function pointer with the arguments loaded and inspect the results on the stack.
 
 The non-variadic Win64 calling convention expects the first four arguments to be in `rcx`/`xmm0`, `rdx`/`xmm1`, `r8`/`xmm2`, and `r9`/`xmm3`, with the caveat that odd-shaped return values are identified by a pointer which goes into `rcx` and is returned in `rax`. There is a modestly complex set of rules around what byte patterns trigger the requirement for a pointer in `rcx`, but the big one is for structs. I've named this case the "big return value case." In the big return value case, the first three explicitly passed arguments go into `rdx`, `r8`, and `r9`. In either case, additional arguments go onto the stack, above the so-called "shadow space."
 
@@ -36,7 +36,7 @@ You must allocate **48** bytes of stack space. `rcx` contains the pointer to the
 
 For variadic functions, the first four arguments go into both `rcx`/`xmm0`, `rdx`/`xmm1`, `r8`/`xmm2`, or `r9`/`xmm3`. Stashing all of those all the time might be excessive, so we'll implement `vbind` later after we've worked out `bind`.
 
-## Implementation notes and data structures
+## Algorithm notes and data structures
 
 ### Return values
 
@@ -93,7 +93,7 @@ Therefore, a signature string can be represented by the regex `[BfFvsqdu]|B?[fFi
 
 **Note:** The original plan for `bind` was to have it see the `B` on the return side and then (somehow) know how to pass the hidden pointer and bump the arguments up to the next register, keep track of how much stack space to allocate, and so on. However, the approach that actually works, and the one that I will take, is to put all that work onto the programmer. You know how big your struct is. `malloc` or `calloc` it. You get the pointer from that. Pass it as the argument in the argument slot for `B`, which must be the first slot. Free it when you're done. See how much easier things are if you just do everything yourself?
 
-## Implementation
+## Algorithm
 
 ### Approach
 
@@ -116,14 +116,10 @@ We must consider that `bind`'s algorithm is a meta-algorithm. It is building a w
 
 The following are the steps for calculating the offset and the numbers of register and stack arguments.
 
-1. Take the length of the signature string.
-2. If it's 2, set the offset to 32 (maxiForth is aligned to 16-byte boundaries internally.), set the number of stack arguments and the number of register arguments to 0, and skip past (8).
-3. Subtract 2 from the length.
-4. If the adjusted length is 4 or less, assign 0 to the number of stack arguments to copy, save the length as the number of register arguments, set the offset to 32, and skip past (8).
-5. Interpret everything after the 4th character as an integer in base 10. Save that integer as the number of stack arguments to copy. Set the number of register arguments to 4.
-6. Add the number of stack arguments to the number of register arguments.
-7. If the result is odd, add 1 to it.
-8. Multiply the number by `POINTER_SIZE`. (This value happens to be 8, so just shift the number over 3). This is the offset. 
+1. Get the number of arguments.
+2. If there are 4 or less, assign 0 to the number of stack arguments to copy, save the length as the number of register arguments, set the offset to 32, and skip past (4).
+3. There are more than 4, so subtract 4 from the total and save the result as the number of stack arguments to copy. Set the number of register arguments to 4. 
+4. Calculate the offset by adding mod 2 to it and multiplying by 8 bytes, the value of `POINTER_SIZE`. 
 
 
 Now bind knows the shape of what to lay down. Assuming that the word is created, `dovar` is replaced with `docol`, and `here` points to the start of the parameter field:
@@ -167,3 +163,13 @@ Because the return handler is only installed when there is a return value, we co
 #### Exiting
 
 Trivially, we must remember to write the XT for `exit` at the end of the word in order to continue execution within the runtime.
+
+## Implementation
+
+The first thing to consider for the actual implementation is where the pieces will actually live. I've created a "bind.ninc" file for the assembly portion of the implementation, and a "dll.forth" for the Forth portion, so named because of its close relation to the desired use case of calling Windows APIs to do GUI (and other) programming with Forth.
+
+### bind.ninc: assembly primitives
+
+
+
+### dll.forth: Forth `bind` implementation
