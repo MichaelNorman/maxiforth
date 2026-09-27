@@ -1,18 +1,21 @@
 ; ********************************* calling & DLLs ******************************** ;
 
 _lla:
-    ds_overflow 1
-    mov r8, LoadLibraryA
-    stack_pushq r8, DATA_TOS_REG
+    ds_underflow 1
+    stack_popq rcx, DATA_TOS_REG ; lpLibFileName
+    call LoadLibraryA
+    stack_pushq rax, DATA_TOS_REG
     jmp _next
 
 _gpa:
-    ds_overflow 1
-    mov r8, GetProcAddress
-    stack_pushq r8, DATA_TOS_REG
+    ds_underflow 2
+    stack_popq rdx, DATA_TOS_REG ; lpProcName
+    stack_popq rcx, DATA_TOS_REG ; hModule
+    call GetProcAddress
+    stack_pushq rax, DATA_TOS_REG
     jmp _next
 
-_rt_call:
+_do_call:
     mov r11, [IP_REG]
     call r11 ; `bind` has done all the work of loading the registers. God help us all.
     add IP_REG, POINTER_SIZE ; step over the data cell
@@ -43,6 +46,31 @@ _rt_call:
 ;
 ; ( callee_addr sig_addr -- <name that follows `bind` on the input is a word that marshals according to sig_addr> )
 
+; private words for binding the argument loaders.
+cfa_arg1u:                  dq _arg1u
+cfa_arg1i:                  dq _arg1i
+cfa_arg1q:                  dq _arg1q
+cfa_arg1d:                  dq _arg1d
+cfa_arg1f:                  dq _arg1f
+cfa_arg1F:                  dq _arg1F
+cfa_arg2u:                  dq _arg2u
+cfa_arg2i:                  dq _arg2i
+cfa_arg2q:                  dq _arg2q
+cfa_arg2d:                  dq _arg2d
+cfa_arg2f:                  dq _arg2f
+cfa_arg2F:                  dq _arg2F
+cfa_arg3u:                  dq _arg3u
+cfa_arg3i:                  dq _arg3i
+cfa_arg3q:                  dq _arg3q
+cfa_arg3d:                  dq _arg3d
+cfa_arg3f:                  dq _arg3f
+cfa_arg3F:                  dq _arg3F
+cfa_arg4u:                  dq _arg4u
+cfa_arg4i:                  dq _arg4i
+cfa_arg4q:                  dq _arg4q
+cfa_arg4d:                  dq _arg4d
+cfa_arg4f:                  dq _arg4f
+cfa_arg4F:                  dq _arg4F
 
 _arg1u:
     stack_popq r10, DATA_TOS_REG ; value
@@ -352,4 +380,137 @@ _bindrargs:
     .1arg:
     call bind_arg1
 
+    jmp _next
+
+_bindret:
+    ; stack has the return code on it, which can be any of the following values:
+    ; |Value|Description|Register|
+    ; |:----|:----------|:----------|
+    ; |v|`void`. No return value. `rax` and `xmm0` contain garbage.|None|
+    ; |B (arg list)|A "big struct" value. Anything with 3, 5, 6, 7, or more than 8 bytes, and nontrivial types. Pointer goes into `rcx` and shifts all args into the next register.|`rax` (pointer)|; |s|A struct with length 1, 2, 4, or 8 bytes.|`rax` (value)|
+    ; |`[1248]`| A 1-, 2-, 4-, or 8-byte struct literal| `rax`|
+    ; |f|A 32-bit floating-point value.|`xmm0`|
+    ; |F|A 64-bit floating-point value.|`xmm0`|
+    ; |q|A 64-bit integer.|`rax` (value)|
+    ; |d|A 32-bit integer.|`eax` (value)|
+    ; |u|A 32-bit unsigned integer.|`eax` (value)|
+    ds_underflow 1
+    mov rdi, [rel here]
+    stack_popq r10, DATA_TOS_REG
+    cmp r10b, 'v'
+    je _next
+
+    cmp r10b, 'B'
+    jne .check_f
+    lea r11, [rel cfa_B_ret]
+    jmp .load_and_next
+
+    .check_f:
+    cmp r10b, 'f'
+    jne .check_F
+    lea r11, [rel cfa_f_ret]
+    jmp .load_and_next
+    .check_F:
+    cmp r10b, 'F'
+    jne .check_q
+    lea r11, [rel cfa_F_ret]
+    jmp .load_and_next
+    .check_q:
+    cmp r10b, 'q'
+    jne .check_d
+    lea r11, [rel cfa_q_ret]
+    jmp .load_and_next
+    .check_d:
+    cmp r10b, 'd'
+    jne .check_1
+    lea r11, [rel cfa_d_ret]
+    jmp .load_and_next
+    .check_1:
+    cmp r10b, '1'
+    jne .check_2
+    lea r11, [rel cfa_1_ret]
+    jmp .load_and_next
+    .check_2:
+    cmp r10b, '2'
+    jne .check_4
+    lea r11, [rel cfa_2_ret]
+    jmp .load_and_next
+    .check_4:
+    cmp r10b, '4'
+    jne .check_8
+    lea r11, [rel cfa_4_ret]
+    jmp .load_and_next
+    .check_8:
+    cmp r10b, '8'
+    jne .bind_u
+    lea r11, [rel cfa_q_ret] ; It's the same operation
+    jmp .load_and_next
+    .bind_u: ; fail silently &/or default to the unsigned 32-bit handler. IOW, the dev must know what they're doing.
+    lea r11, [rel cfa_u_ret]
+
+    .load_and_next:
+    mov rdi, r11
+    add qword [rel here], POINTER_SIZE
+    jmp _next
+
+
+cfa_B_ret: dq _do_B_ret
+_do_B_ret:
+    ds_overflow 1
+    stack_pushq rax, DATA_TOS_REG
+    jmp _next
+
+cfa_f_ret: dq _do_f_ret
+_do_f_ret:
+    ds_overflow 1
+    movd eax, xmm0
+    stack_pushq rax, DATA_TOS_REG
+    jmp _next
+
+cfa_F_ret: dq _do_F_ret
+_do_F_ret:
+    ds_overflow 1
+    movq rax, xmm0
+    stack_pushq rax, DATA_TOS_REG
+    jmp _next
+
+cfa_q_ret: dq _do_q_ret
+_do_q_ret:
+    ds_overflow 1
+    stack_pushq rax, DATA_TOS_REG
+    jmp _next
+
+cfa_d_ret: dq _do_d_ret
+_do_d_ret:
+    ds_overflow 1
+    movsxd rax, eax
+    stack_pushq rax, DATA_TOS_REG
+    jmp _next
+
+cfa_1_ret: dq _do_1_ret
+_do_1_ret:
+    ds_overflow 1
+    movzx eax, al
+    stack_pushq rax, DATA_TOS_REG
+    jmp _next
+
+cfa_2_ret: dq _do_2_ret
+_do_2_ret:
+    ds_overflow 1
+    movzx eax, ax
+    stack_pushq rax, DATA_TOS_REG
+    jmp _next
+
+cfa_4_ret: dq _do_4_ret
+_do_4_ret:
+    ds_overflow 1
+    mov eax, eax
+    stack_pushq rax, DATA_TOS_REG
+    jmp _next
+
+cfa_u_ret: dq _do_u_ret
+_do_u_ret:
+    ds_overflow 1
+    mov eax, eax
+    stack_pushq rax, DATA_TOS_REG
     jmp _next

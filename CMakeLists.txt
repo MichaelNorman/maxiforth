@@ -54,11 +54,23 @@ configure_file(
         @ONLY
 )
 
-configure_file(
-        ${CMAKE_SOURCE_DIR}/explore/dll.forth
-        ${CMAKE_BINARY_DIR}/explore/dll.forth
-        @ONLY
-)
+#configure_file(
+#        ${CMAKE_SOURCE_DIR}/explore/dll.forth
+#        ${CMAKE_BINARY_DIR}/explore/dll.forth
+#        @ONLY
+#)
+file(GLOB_RECURSE EXPLORE_FILES
+        RELATIVE ${CMAKE_SOURCE_DIR}
+        CONFIGURE_DEPENDS
+        ${CMAKE_SOURCE_DIR}/explore/*)
+
+foreach(f IN LISTS EXPLORE_FILES)
+    configure_file(
+            ${CMAKE_SOURCE_DIR}/${f}
+            ${CMAKE_BINARY_DIR}/${f}
+            @ONLY
+    )
+endforeach()
 
 # needed for linking
 target_link_libraries(maxiForth PRIVATE kernel32)

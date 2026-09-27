@@ -86,31 +86,7 @@ section .data
     cfa_wbuf:                   dq push_wbuf
     cfa_dovar:                  dq _dovar
     
-    ; private words for binding. Might move these later
-    cfa_arg1u:                  dq _arg1u
-    cfa_arg1i:                  dq _arg1i
-    cfa_arg1q:                  dq _arg1q
-    cfa_arg1d:                  dq _arg1d
-    cfa_arg1f:                  dq _arg1f
-    cfa_arg1F:                  dq _arg1F
-    cfa_arg2u:                  dq _arg2u
-    cfa_arg2i:                  dq _arg2i
-    cfa_arg2q:                  dq _arg2q
-    cfa_arg2d:                  dq _arg2d
-    cfa_arg2f:                  dq _arg2f
-    cfa_arg2F:                  dq _arg2F
-    cfa_arg3u:                  dq _arg3u
-    cfa_arg3i:                  dq _arg3i
-    cfa_arg3q:                  dq _arg3q
-    cfa_arg3d:                  dq _arg3d
-    cfa_arg3f:                  dq _arg3f
-    cfa_arg3F:                  dq _arg3F
-    cfa_arg4u:                  dq _arg4u
-    cfa_arg4i:                  dq _arg4i
-    cfa_arg4q:                  dq _arg4q
-    cfa_arg4d:                  dq _arg4d
-    cfa_arg4f:                  dq _arg4f
-    cfa_arg4F:                  dq _arg4F
+
 
     align 16
     static_dictionary:
@@ -337,7 +313,7 @@ section .data
     regular_entry _bye, "msg", _message
     regular_entry _message, "ctype", _ctype
     regular_entry _ctype, "dovar", _dovar
-    regular_entry _dovar, "pause", _pause
+    masked_dict_entry _dovar, "pause", _pause, IMMEDIATE
     regular_entry _pause, "malloc", _malloc
     regular_entry _malloc, "calloc", _calloc
     regular_entry _calloc, "realloc", _realloc
@@ -345,8 +321,9 @@ section .data
     regular_entry _free, "movrsp", _movrsp
     regular_entry _movrsp, "bindrargs", _bindrargs
     regular_entry _bindrargs, "rsp", _rsp
-    regular_entry _rsp, "rt_call", _rt_call
-    regular_entry _rt_call, "wbuf", push_wbuf
+    regular_entry _rsp, "bindret", _bindret
+    regular_entry _bindret, "do_call", _do_call
+    regular_entry _do_call, "wbuf", push_wbuf
     initial_latest:
     regular_entry push_wbuf, "accept", _accept
 

@@ -62,6 +62,7 @@ var offset
 var stackargs
 var regargs
 
+
 \ ( psigspec -- psigspec < regargs, stackargs, and offset calculated and stored> )
 : config-bind
     countargs
@@ -97,10 +98,10 @@ var regargs
 : rettype 8 + c@ ;
 
 \ ( pfunc psigspec - < binding created for for pfunc with the dictionary entry supplied by the user> )
-: bind create here 16 - dp ! find docol @ , 0 ,
+: bind create here 16 - dp ! [ ' docol @ ] literal , 0 ,
     config-bind
     ['] movrsp ,
-    offset  @ ,
+    offset @ ,
 
     stackargs @ 0 >
     if
@@ -112,19 +113,20 @@ var regargs
         regargs @ bindrargs
     then
 
-    ['] rt_call ,
-    swap ,
+    ['] do_call ,
+    swap , \ get the function address on top and comma it in
 
     rettype \ consume psigspec (config-bind is a no-op on the stack)
-    118 ne
+    118 <>
     if
         rettype
-        setret
+        bindret
     then
 
     ['] movrsp ,
     0 offset @ - ,
     ['] exit ,
+
     0 regargs !
     0 stackargs !
     0 offset !

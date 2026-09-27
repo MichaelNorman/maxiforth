@@ -71,8 +71,7 @@ In any event, we need to provide `bind` with what it needs to build the call. So
 |Value|Description|Register|
 |:----|:----------|:----------|
 |v|`void`. No return value. `rax` and `xmm0` contain garbage.|None|
-|B (arg list)|A "big struct" value. Anything with 3, 5, 6, 7, or more than 8 bytes, and nontrivial types. Pointer goes into `rcx` and shifts all args into the next register.|`rax` (pointer)|
-|`[1248]`|A struct with length 1, 2, 4, or 8 bytes.|`rax` (value)|
+|B (arg list)|A "big struct" value. Anything with 3, 5, 6, 7, or more than 8 bytes, and nontrivial types. Pointer goes into `rcx` and shifts all args into the next register. Your signature string must start "B\|i".|`rax` (pointer)|
 |f|A 32-bit floating-point value.|`xmm0`|
 |F|A 64-bit floating-point value.|`xmm0`|
 |q|A 64-bit integer.|`rax` (value)|
@@ -83,10 +82,10 @@ In any event, we need to provide `bind` with what it needs to build the call. So
 
 |Value|Description|Register(s)|
 |:----|:----------|:----------|
-|B|A "big struct" pointer. Your signature string must start "B\|B" to control separate behaviors for the call and return.|`rcx` (pointer)|
+|B|A "big struct" pointer.|`rcx` (pointer)|
 |f|A 32-bit floating-point value.|`xmm0`-`xmm3`|
 |F|A 64-bit floating-point value.|`xmm0`-`xmm3`|
-|i|Any integer type. Entire cell is moved to the register|`rcx`, `rdx`, `r8`, `r9`|
+|i|Any integer type. Entire cell is moved to the register. Also used for `B` pointer|`rcx`, `rdx`, `r8`, `r9`|
 |`([0-9]+)?$`|The number of stack arguments. (The ones beyond the first 4 explicit arguments.)|None. Placed on the stack above the shadow space.|
 
 Therefore, a signature string can be represented by the regex `[BfFvsqdu]|B?[fFi]*`.
