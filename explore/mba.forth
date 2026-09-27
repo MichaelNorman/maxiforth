@@ -25,10 +25,10 @@ ptr_mba !
 
 h" d|iiii" mba_sigstr !
 
-ptr_mba @ mba_sigstr @ cstr bind MBOX
+ptr_mba @ mba_sigstr @ bind MBOX
 
 h" Forth message" mba_caption !
-h" Hello, Windows!" mba_messaage !
+h" Hello, Windows!" mba_message !
 
 0 mba_message @ cstr mba_caption @ cstr 0 MBOX
 

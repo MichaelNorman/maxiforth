@@ -99,7 +99,7 @@ var regargs
 
 \ ( pfunc psigspec - < binding created for for pfunc with the dictionary entry supplied by the user> )
 : bind create here 16 - dp ! [ ' docol @ ] literal , 0 ,
-    config-bind
+    config-bind \ ( psigspec -- psigspec )
     ['] movrsp ,
     offset @ ,
 
@@ -110,13 +110,14 @@ var regargs
 
     regargs @ 0 >
     if
-        regargs @ bindrargs
+        dup regargs @ bindrargs
     then
 
-    ['] do_call ,
+    [ ' do_call ] literal ,
+
     swap , \ get the function address on top and comma it in
 
-    rettype \ consume psigspec (config-bind is a no-op on the stack)
+    dup rettype \ consume psigspec (config-bind is a no-op on the stack)
     118 <>
     if
         rettype
@@ -131,3 +132,4 @@ var regargs
     0 stackargs !
     0 offset !
 ;
+

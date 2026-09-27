@@ -379,6 +379,8 @@ var stackp
     0 swap !              \ ( ptr-var -- <0 stored in ptr-var> )
 ;
 
+: words ;
+
 include @MAXIFORTH_ROOT@\custom\custom.forth
 
 

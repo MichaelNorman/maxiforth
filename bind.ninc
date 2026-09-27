@@ -49,25 +49,21 @@ _do_call:
 ; private words for binding the argument loaders.
 cfa_arg1u:                  dq _arg1u
 cfa_arg1i:                  dq _arg1i
-cfa_arg1q:                  dq _arg1q
 cfa_arg1d:                  dq _arg1d
 cfa_arg1f:                  dq _arg1f
 cfa_arg1F:                  dq _arg1F
 cfa_arg2u:                  dq _arg2u
 cfa_arg2i:                  dq _arg2i
-cfa_arg2q:                  dq _arg2q
 cfa_arg2d:                  dq _arg2d
 cfa_arg2f:                  dq _arg2f
 cfa_arg2F:                  dq _arg2F
 cfa_arg3u:                  dq _arg3u
 cfa_arg3i:                  dq _arg3i
-cfa_arg3q:                  dq _arg3q
 cfa_arg3d:                  dq _arg3d
 cfa_arg3f:                  dq _arg3f
 cfa_arg3F:                  dq _arg3F
 cfa_arg4u:                  dq _arg4u
 cfa_arg4i:                  dq _arg4i
-cfa_arg4q:                  dq _arg4q
 cfa_arg4d:                  dq _arg4d
 cfa_arg4f:                  dq _arg4f
 cfa_arg4F:                  dq _arg4F
@@ -78,10 +74,6 @@ _arg1u:
     jmp _next
 
 _arg1i:
-    stack_popq rcx, DATA_TOS_REG
-    jmp _next
-
-_arg1q:
     stack_popq rcx, DATA_TOS_REG
     jmp _next
 
@@ -110,10 +102,6 @@ _arg2i:
     mov rdx, r10
     jmp _next
 
-_arg2q:
-    stack_popq rdx, DATA_TOS_REG
-    jmp _next
-
 _arg2d:
     stack_popq r10, DATA_TOS_REG
     movsxd rdx, r10d
@@ -137,10 +125,6 @@ _arg3u:
 _arg3i:
     stack_popq r10, DATA_TOS_REG
     mov r8, r10
-    jmp _next
-
-_arg3q:
-    stack_popq r8, DATA_TOS_REG
     jmp _next
 
 _arg3d:
@@ -168,10 +152,6 @@ _arg4i:
     mov r9, r10
     jmp _next
 
-_arg4q:
-    stack_popq r9, DATA_TOS_REG
-    jmp _next
-
 _arg4d:
     stack_popq r10, DATA_TOS_REG
     movsxd r9, r10d
@@ -188,30 +168,31 @@ _arg4F:
     jmp _next
 
 bind_arg1:
-    ; r10b contains the type specifier
+    ; r10 contains the address of the type specifier
     mov rdi, [rel here]
-    cmp r10b, 'q'
-    jne .check_d
-    lea rax, [rel cfa_arg1q]
-    mov qword [rdi], rax
-    add qword [rel here], POINTER_SIZE
-    ret
-    .check_d:
-    cmp r10b, 'd'
-    jne .check_i
-    lea rax, [rel cfa_arg1q]
-    mov qword [rdi], rax
-    add qword [rel here], POINTER_SIZE
-    ret
     .check_i:
-    cmp r10b, 'i'
-    jne .check_f
+    cmp byte [r10], 'i'
+    jne .check_d
     lea rax, [rel cfa_arg1i]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
+    .check_d:
+    cmp byte [r10], 'd'
+    jne .check_u
+    lea rax, [rel cfa_arg1d]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    ret
+    .check_u:
+    cmp byte [r10], 'u'
+    jne .check_f
+    lea rax, [rel cfa_arg1u]
+    mov qword [rdi], rax
+    add qword [rel here], POINTER_SIZE
+    ret
     .check_f:
-    cmp r10b, 'f'
+    cmp byte [r10], 'f'
     jne .do_F
     lea rax, [rel cfa_arg1f]
     mov qword [rdi], rax
@@ -226,32 +207,29 @@ bind_arg1:
 bind_arg2:
     ; r10b contains the type specifier
     mov rdi, [rel here]
-    cmp r10b, 'q'
+    .check_i:
+    cmp byte [r10], 'i'
     jne .check_d
-    lea rax, [rel cfa_arg2q]
+    lea rax, [rel cfa_arg2i]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
     .check_d:
-    cmp r10b, 'd'
-    jne .check_i
+    cmp byte [r10], 'd'
+    jne .check_u
     lea rax, [rel cfa_arg2d]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
-    .check_i:
-    cmp r10b, 'i'
-    jne .do_ui
     .check_u:
-    cmp r10b, 'u'
+    cmp byte [r10], 'u'
     jne .check_f
-    .do_ui:
     lea rax, [rel cfa_arg2u]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
     .check_f:
-    cmp r10b, 'f'
+    cmp byte [r10], 'f'
     jne .do_F
     lea rax, [rel cfa_arg2f]
     mov qword [rdi], rax
@@ -266,32 +244,29 @@ bind_arg2:
 bind_arg3:
     ; r10b contains the type specifier
     mov rdi, [rel here]
-    cmp r10b, 'q'
+    .check_i:
+    cmp byte [r10], 'i'
     jne .check_d
-    lea rax, [rel cfa_arg3q]
+    lea rax, [rel cfa_arg3i]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
     .check_d:
-    cmp r10b, 'd'
-    jne .check_i
+    cmp byte [r10], 'd'
+    jne .check_u
     lea rax, [rel cfa_arg3d]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
-    .check_i:
-    cmp r10b, 'i'
-    jne .do_ui
     .check_u:
     cmp r10b, 'u'
     jne .check_f
-    .do_ui:
     lea rax, [rel cfa_arg3u]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
     .check_f:
-    cmp r10b, 'f'
+    cmp byte [r10], 'f'
     jne .do_F
     lea rax, [rel cfa_arg3f]
     mov qword [rdi], rax
@@ -306,32 +281,29 @@ bind_arg3:
 bind_arg4:
     ; r10b contains the type specifier
     mov rdi, [rel here]
-    cmp r10b, 'q'
+    .check_i:
+    cmp byte [r10], 'i'
     jne .check_d
-    lea rax, [rel cfa_arg4q]
+    lea rax, [rel cfa_arg4i]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
     .check_d:
-    cmp r10b, 'd'
-    jne .check_i
+    cmp byte [r10], 'd'
+    jne .check_u
     lea rax, [rel cfa_arg4d]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
-    .check_i:
-    cmp r10b, 'i'
-    jne .do_ui
     .check_u:
-    cmp r10b, 'u'
+    cmp byte [r10], 'u'
     jne .check_f
-    .do_ui:
     lea rax, [rel cfa_arg4u]
     mov qword [rdi], rax
     add qword [rel here], POINTER_SIZE
     ret
     .check_f:
-    cmp r10b, 'f'
+    cmp byte [r10], 'f'
     jne .do_F
     lea rax, [rel cfa_arg4f]
     mov qword [rdi], rax
@@ -346,7 +318,7 @@ bind_arg4:
 _movrsp:
     ; get the current instruction pointer
     mov r8, [IP_REG]
-    sub rsp, [IP_REG]
+    sub rsp, r8
     add IP_REG, POINTER_SIZE
     jmp _next
 
@@ -355,13 +327,17 @@ _rsp:
     stack_pushq rsp, DATA_TOS_REG
     jmp _next
 
-; ( n -- <stack loading tokens placed in reverse order> )
+; ( psigspec n -- <stack loading tokens placed in reverse order> )
 _bindrargs:
     ; off limits: rsp, r10, r8, r9, rax, rcx, rdx, rdi, r12-r15, xmm0-xmm4
     ; available: r11
 
-    ds_underflow 1
+    ds_underflow 2
     stack_popq r11, DATA_TOS_REG
+    stack_popq r10, DATA_TOS_REG
+    add r10, 9
+    add r10, r11
+
     cmp r11, 4
     je .4args
     cmp r11, 3
@@ -373,10 +349,13 @@ _bindrargs:
     jmp _next
     .4args:
     call bind_arg4
+    dec r10
     .3args:
     call bind_arg3
+    dec r10
     .2args:
     call bind_arg2
+    dec r10
     .1arg:
     call bind_arg1
 
@@ -449,7 +428,7 @@ _bindret:
     lea r11, [rel cfa_u_ret]
 
     .load_and_next:
-    mov rdi, r11
+    mov [rdi], r11
     add qword [rel here], POINTER_SIZE
     jmp _next
 

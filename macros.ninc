@@ -1,6 +1,6 @@
-;%ifndef BOUNDS_CHECK
-;%define BOUNDS_CHECK
-;%endif
+%ifndef BOUNDS_CHECK
+%define BOUNDS_CHECK
+%endif
 
 %macro enter_call 0
     push rbx
