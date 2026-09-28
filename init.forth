@@ -379,8 +379,48 @@ var stackp
     0 swap !              \ ( ptr-var -- <0 stored in ptr-var> )
 ;
 
-: words ;
+var current-word
+var done-last
+create words-buffer 40 allot
 
+: >wordlen c@ 96 invert and ;
+\ ( -- <dictword is converted and stored in pbuffer> )
+: fill-ws-buffer
+    words-buffer current-word @
+    9 + swap cell + 31 cmove
+    0 words-buffer 39 + c!
+    current-word @ cell + >wordlen words-buffer !
+;
+
+: words
+    \ walk through the dictionary until we hit the null pointer, converting words into Forth strings (with a space after
+    \ each) and typing them.
+
+    latest @ current-word !
+    false done-last !
+    lf
+    begin
+        done-last @ false =
+    while
+        current-word @ cell + c@
+        64 and 0 =
+        if
+            fill-ws-buffer
+            \ pause
+            words-buffer type
+            sp
+        then
+
+        current-word @ @
+
+        dup 0 =
+        if
+            true done-last ! drop
+        else
+            current-word !
+        then
+    repeat
+;
 include @MAXIFORTH_ROOT@\custom\custom.forth
 
 
