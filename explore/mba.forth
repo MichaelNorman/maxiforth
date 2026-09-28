@@ -32,3 +32,5 @@ h" Hello, Windows!" mba_message !
 
 0 mba_message @ cstr mba_caption @ cstr 0 MBOX
 
+drop \ The message box succeeds, so we just clean up after ourselves.
+

@@ -379,6 +379,7 @@ var stackp
     0 swap !              \ ( ptr-var -- <0 stored in ptr-var> )
 ;
 
+\ List out the words in the dictionary.
 var current-word
 var done-last
 create words-buffer 40 allot
@@ -393,12 +394,12 @@ create words-buffer 40 allot
 ;
 
 : words
-    \ walk through the dictionary until we hit the null pointer, converting words into Forth strings (with a space after
+    \ Walk through the dictionary until we hit the null pointer, converting words into Forth strings (with a space after
     \ each) and typing them.
 
     latest @ current-word !
     false done-last !
-    lf
+    lf \ A nice visual break.
     begin
         done-last @ false =
     while
@@ -406,7 +407,6 @@ create words-buffer 40 allot
         64 and 0 =
         if
             fill-ws-buffer
-            \ pause
             words-buffer type
             sp
         then
@@ -421,6 +421,8 @@ create words-buffer 40 allot
         then
     repeat
 ;
+
+\ This is the hook into additional user-specified bootup code.
 include @MAXIFORTH_ROOT@\custom\custom.forth
 
 
