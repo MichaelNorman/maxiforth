@@ -93,13 +93,9 @@ create : here 16 - dp ! ' docol @ , 0 ,
 ' docol ,
 ' @ ,
 ' , ,
-' dp ,
-' @ ,
 ' lit ,
-8 ,
-' + ,
-' dp ,
-' ! ,
+0 ,
+' , ,
 ' lit ,
 1 ,
 ' state ,
@@ -135,7 +131,7 @@ create 'lit ' lit , \ put lit into the dictionary
 : const create , does> @ ;
 : allot here + dp ! ;
 
-: cells 8 * ;
+: cells 8 * ; \ readable way to talk about memory cells, such as: my_ptr 5 cells +
 : cell 8 ;
 
 \ if/else/then

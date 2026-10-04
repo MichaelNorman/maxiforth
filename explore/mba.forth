@@ -30,7 +30,11 @@ ptr_mba @ mba_sigstr @ bind MBOX
 h" Forth message" mba_caption !
 h" Hello, Windows!" mba_message !
 
-0 mba_message @ cstr mba_caption @ cstr 0 MBOX
+\ 0 mba_message @ cstr mba_caption @ cstr 0 MBOX
 
-drop \ The message box succeeds, so we just clean up after ourselves.
+\ drop \ The message box succeeds, so we just clean up after ourselves.
+
+\ Amuse the user:
+
+: mb 0 mba_message @ cstr mba_caption @ cstr 0 MBOX drop ;
 

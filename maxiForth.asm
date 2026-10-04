@@ -85,8 +85,6 @@ section .data
     cfa_ok:                     dq _ok
     cfa_wbuf:                   dq push_wbuf
     cfa_dovar:                  dq _dovar
-    
-
 
     align 16
     static_dictionary:
@@ -330,7 +328,7 @@ section .data
 section .bss
     alignb 16
     initial_here:
-    dynammic_dictionary   resb DYNA_DICT_SIZE
+    dynamic_dictionary    resb DYNA_DICT_SIZE
     dyna_dict_end:
     main_rbp              resq 1
     stdin                 resq 1

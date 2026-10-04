@@ -17,8 +17,10 @@ _gpa:
 
 _do_call:
     mov r11, [IP_REG]
+    c_reg_stash
     call r11 ; `bind` has done all the work of loading the registers. God help us all.
     add IP_REG, POINTER_SIZE ; step over the data cell
+    c_reg_restore
     jmp _next
 
 ; bind signature can be represented by: [vqdufF](;|[ifF]*)?
@@ -493,3 +495,9 @@ _do_u_ret:
     mov eax, eax
     stack_pushq rax, DATA_TOS_REG
     jmp _next
+
+;*************************** callback handler *********************************;
+
+WndProc:
+
+    ret

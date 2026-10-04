@@ -115,7 +115,7 @@ _dup:
     stack_pushq r8, DATA_TOS_REG
     jmp _next
 
-_2dup:
+_2dup: ; TODO: This contains a bug!
     ds_underflow 2
     ds_overflow 2
     mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
