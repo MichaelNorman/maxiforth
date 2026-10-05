@@ -118,10 +118,10 @@ _dup:
 _2dup: ; TODO: This contains a bug!
     ds_underflow 2
     ds_overflow 2
-    mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
-    mov r9, [DATA_TOS_REG - CELL_SIZE]
+    mov r8, [DATA_TOS_REG - 2*CELL_SIZE] ; 1 below TOS
+    mov r9, [DATA_TOS_REG - CELL_SIZE]   ; 2 below TOS
     mov [DATA_TOS_REG], r8
-    mov [DATA_TOS_REG + 2*CELL_SIZE], r9
+    mov [DATA_TOS_REG + CELL_SIZE], r9
     add DATA_TOS_REG, 2*CELL_SIZE
     jmp _next
 
