@@ -98,6 +98,8 @@
 
 ; post: IP points to quit
 %macro throw 1
+    cmp byte [rel in_callback], 1
+    je .callback_restore
     mov rbp, [rel main_rbp]
     mov rsp, rbp
     and rsp, -0x10
@@ -111,6 +113,8 @@
     lea IP_REG, [rel label_quit + CFA_OFFSET + 2*POINTER_SIZE] ; explicitly skip docol
     mov rbp, [rel main_rbp]
     jmp _next
+    .callback_restore:
+    int3
 %endmacro
 
 %macro call_c 2

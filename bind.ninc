@@ -495,9 +495,3 @@ _do_u_ret:
     mov eax, eax
     stack_pushq rax, DATA_TOS_REG
     jmp _next
-
-;*************************** callback handler *********************************;
-
-WndProc:
-
-    ret

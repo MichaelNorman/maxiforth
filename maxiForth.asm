@@ -1,5 +1,6 @@
 %include "macros.ninc"
 %include "primitives.ninc"
+%include "callbacks.ninc"
 
 section .rodata
 
@@ -198,6 +199,9 @@ section .data
             dq cfa_drop         ; ( &word_buffer -- )
             ; dq cfa_pause
             dq cfa_wb_to_pad    ; ( -- &pad <pad contains typable string representation of word_buffer> )
+            dq cfa_lit          ; emit a space for readability.
+            dq 32               ; ( -- 32 )
+            dq cfa_emit         ; ( 32 -- <space emitted into output> )
             dq cfa_type         ; ( &pad -- <print unknown word> )
             dq cfa_lit
             dq qstr             ; ( -- &qstr )
@@ -353,6 +357,7 @@ section .bss
     negative              resb 1
     digit_buffer          resb 31
     number_buffer         resb 33
+    in_callback           resb 1
 
 
 section .text
@@ -392,6 +397,9 @@ main:
     lea r8, [rel file_pointer_stack]
     mov [rel fp_tos], r8
     mov [rel main_rbp], rbp
+
+    ; start out not in a callback
+    mov byte [rel in_callback], 0
     mov qword [rel bytes_read], 0
     sub rsp, 32
     lea rax, [rel initial_latest]
@@ -408,12 +416,12 @@ main:
     ; point input at init.forth, init file adjacent to exe
     call get_init
     mov rcx, rax
-    ;call printf
-    ;int3
+
     lea rdx, [rel file_read_str]
     call fopen
     test rax, rax
     jz .init_file_no_exist
+
     ; file_pointer_stack, fp_tos, qw_scratch
     var_of file_pointer_stack, fp_tos, POINTER_SIZE, 1, FILE_POINTER_STACK_SIZE*POINTER_SIZE, error_fp_stack_overflow
     mov r8, rax
