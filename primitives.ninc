@@ -10,6 +10,7 @@ section .text
 ; pre : IP points at a cell with a valid CFA
 ; post: The CFA pointed to by IP is in W, IP advances one cell, execution has jumped to [W]
 ; summary: Walks along a string of CFAs and runs them.
+; VESTIGIAL: InlineD via  macro _NEXT
 _next:
     mov W_REG, [IP_REG]
     add IP_REG, POINTER_SIZE
@@ -24,21 +25,21 @@ _docol:
     rs_overflow 1
     stack_pushq IP_REG, RETURN_TOS_REG
     lea IP_REG, [W_REG + 2*POINTER_SIZE]
-    jmp _next
+    _NEXT
 
 ; pre: Return stack contains pointer to outer context
 ; post: Outer context is popped off of return stack into IP_REG. Execution continues at outer context
 _exit:
     rs_underflow 1
     stack_popq IP_REG, RETURN_TOS_REG
-    jmp _next
+    _NEXT
 
 _dovar:
     ds_overflow 1
     mov r8, W_REG
     add r8, 2*POINTER_SIZE
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _do_does:
     ds_overflow 1
@@ -47,14 +48,14 @@ _do_does:
     stack_pushq r8, DATA_TOS_REG          ; leave it on the data stack for safekeeping
     stack_pushq IP_REG, RETURN_TOS_REG
     mov IP_REG, [W_REG + POINTER_SIZE]
-    jmp _next
+    _NEXT
 
 
 ; *********************** branching primitives *************** ;
 _branch:
     mov r8, [IP_REG]
     add IP_REG, r8
-    jmp _next
+    _NEXT
 
 _0branch:
     ds_underflow 1
@@ -63,17 +64,17 @@ _0branch:
     jnz .no_jmp
     mov r8, [IP_REG]
     add IP_REG, r8
-    jmp _next
+    _NEXT
     .no_jmp:
     add IP_REG, POINTER_SIZE
-    jmp _next
+    _NEXT
 
 _lit:
     ds_overflow 1
     mov r8, [IP_REG]
     stack_pushq r8, DATA_TOS_REG
     add IP_REG, POINTER_SIZE
-    jmp _next
+    _NEXT
 
 ; ************************** os boundary ************************ ;
 
@@ -82,13 +83,13 @@ _key:
     xor rax, rax
     call_c _getch, 32
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _emit:
     ds_underflow 1
     stack_popq rcx, DATA_TOS_REG
     call_c _putch, 32
-    jmp _next
+    _NEXT
 
 _ctype:
     ds_underflow 1
@@ -96,7 +97,7 @@ _ctype:
     sub rsp, 32
     call printf
     add rsp, 32
-    jmp _next
+    _NEXT
 
 _type:
     ds_underflow 1
@@ -105,7 +106,7 @@ _type:
     sub rsp, 32
     call printf
     add rsp, 32
-    jmp _next
+    _NEXT
 ; *************************** stack manipulation ******************** ;
 
 _dup:
@@ -113,7 +114,7 @@ _dup:
     ds_overflow 1
     mov r8, [DATA_TOS_REG - CELL_SIZE]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _2dup: ; TODO: This contains a bug!
     ds_underflow 2
@@ -123,12 +124,12 @@ _2dup: ; TODO: This contains a bug!
     mov [DATA_TOS_REG], r8
     mov [DATA_TOS_REG + CELL_SIZE], r9
     add DATA_TOS_REG, 2*CELL_SIZE
-    jmp _next
+    _NEXT
 
 _drop:
     ds_underflow 1
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _swap:
     ds_underflow 2
@@ -136,14 +137,14 @@ _swap:
     mov r9, [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], r9
     mov [DATA_TOS_REG - CELL_SIZE], r8
-    jmp _next
+    _NEXT
 
 _over:
     ds_underflow 2
     ds_overflow 1
     mov r8, [DATA_TOS_REG - 2*CELL_SIZE]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _rot:
     ds_underflow 3
@@ -153,14 +154,14 @@ _rot:
     mov r9, [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], r9
     mov [DATA_TOS_REG - CELL_SIZE], r8
-    jmp _next
+    _NEXT
 
 _to_return:
     ds_underflow 1
     rs_overflow 1
     stack_popq r8, DATA_TOS_REG
     stack_pushq r8, RETURN_TOS_REG
-    jmp _next
+    _NEXT
 
 _to_data:
     rs_underflow 1
@@ -168,17 +169,17 @@ _to_data:
     stack_popq r8, RETURN_TOS_REG
     stack_pushq r8, DATA_TOS_REG
 
-    jmp _next
+    _NEXT
 
 _get_sp:
     ds_overflow 1
     stack_pushq DATA_TOS_REG, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _rp:
     rs_overflow 1
     stack_pushq RETURN_TOS_REG, RETURN_TOS_REG
-    jmp _next
+    _NEXT
 
 ; ********************* state variables ********************* ;
 %macro pushvar 2
@@ -186,7 +187,7 @@ push%1:
     ds_overflow 1
     lea r8, [rel %2]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 %endmacro
 
 pushvar _wbuf, word_buffer
@@ -199,13 +200,13 @@ _here:
     ds_overflow 1
     mov r8, [rel here]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _input_pos:
     ds_overflow 1
     lea r8, [rel input_pos]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _input_buffer:
     ds_overflow 2
@@ -213,25 +214,25 @@ _input_buffer:
     stack_pushq r8, DATA_TOS_REG
     mov r8, INPUT_BUFFER_SIZE
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _tib:
     ds_overflow 1
     lea r8, [rel input_buffer]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _tib_len:
     ds_overflow 1
     mov r8, [rel bytes_read]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _tib_max:
     ds_overflow 1
     mov r8, INPUT_BUFFER_SIZE - 1
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 ; ********************* memory read/write ********************* ;
 _get:
@@ -239,7 +240,7 @@ _get:
     mov r8, [DATA_TOS_REG - CELL_SIZE]
     mov r8, [r8]
     mov [DATA_TOS_REG - CELL_SIZE], r8
-    jmp _next
+    _NEXT
 
 _store:
     ds_underflow 2
@@ -247,14 +248,14 @@ _store:
     mov r9, [DATA_TOS_REG - 2*CELL_SIZE]  ; VALUE
     mov [r8], r9
     sub DATA_TOS_REG, 2*CELL_SIZE
-    jmp _next
+    _NEXT
 
 _char_get:
     ds_underflow 1
     mov r8, [DATA_TOS_REG - CELL_SIZE]
     movzx r8d, byte [r8]
     mov [DATA_TOS_REG - CELL_SIZE], r8
-    jmp _next
+    _NEXT
 
 _char_store:
     ds_underflow 2
@@ -262,7 +263,7 @@ _char_store:
     movzx r9d, byte [DATA_TOS_REG - 2*CELL_SIZE]  ; VALUE
     mov byte [r8], r9b
     sub DATA_TOS_REG, 2*CELL_SIZE
-    jmp _next
+    _NEXT
 
 _cmove_desc:
     ds_underflow 3
@@ -274,7 +275,7 @@ _cmove_desc:
     std
     rep movsb
     cld
-    jmp _next
+    _NEXT
 
 _cmove_asc:
     ds_underflow 3
@@ -283,7 +284,7 @@ _cmove_asc:
     stack_popq rsi, DATA_TOS_REG ; src
     cld
     rep movsb
-    jmp _next
+    _NEXT
 
 _wb_to_pad:
     ds_overflow 1
@@ -308,13 +309,13 @@ _wb_to_pad:
     rep movsb
     lea r8, [rel pad]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _pad:
     ds_overflow 1
     lea r8, [rel pad]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 ; ******************** guts ************************;
 
@@ -322,23 +323,23 @@ _rp0:
     ds_overflow 1
     lea r8, [rel return_stack]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _sp0:
     ds_overflow 1
     lea r8, [rel data_stack]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _rp_store:
     ds_underflow 1
     stack_popq RETURN_TOS_REG, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _sp_store:
     ds_underflow 1
     stack_popq DATA_TOS_REG, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 ; *********************** arithmetic ************************** ;
 
@@ -348,7 +349,7 @@ _add:
     add r8, [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], r8
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _sub:
     ds_underflow 2
@@ -356,7 +357,7 @@ _sub:
     sub r8, [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], r8
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _and:
     ds_underflow 2
@@ -364,12 +365,12 @@ _and:
     and r8, [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], r8
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _invert:
     ds_underflow 1
     not qword [DATA_TOS_REG - CELL_SIZE]
-    jmp _next
+    _NEXT
 
 _mul:
     ds_underflow 2
@@ -377,7 +378,7 @@ _mul:
     imul qword [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], rax
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _xor:
     ds_underflow 2
@@ -385,7 +386,7 @@ _xor:
     xor r8, [DATA_TOS_REG - 2*CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], r8
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _or:
     ds_underflow 2
@@ -393,7 +394,7 @@ _or:
     or r8, [DATA_TOS_REG - 2*CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], r8
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _div:
     ds_underflow 2
@@ -402,7 +403,7 @@ _div:
     idiv qword [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], rax
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _divmod:
     ds_underflow 2
@@ -411,7 +412,7 @@ _divmod:
     idiv qword [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], rdx ; remainder
     mov [DATA_TOS_REG - CELL_SIZE], rax   ; quotient
-    jmp _next
+    _NEXT
 
 _mod:
     ds_underflow 2
@@ -420,7 +421,7 @@ _mod:
     idiv qword [DATA_TOS_REG - CELL_SIZE]
     mov [DATA_TOS_REG - 2*CELL_SIZE], rdx
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _plus_store:
     ds_underflow 2
@@ -428,7 +429,7 @@ _plus_store:
     mov r9, [DATA_TOS_REG - 2*CELL_SIZE] ; n
     add qword [r8], r9
     sub DATA_TOS_REG, 2*CELL_SIZE
-    jmp _next
+    _NEXT
 
 _sub_store:
     ds_underflow 2
@@ -436,21 +437,21 @@ _sub_store:
     mov r9, [DATA_TOS_REG - 2*CELL_SIZE] ; n
     sub qword [r8], r9
     sub DATA_TOS_REG, 2*CELL_SIZE
-    jmp _next
+    _NEXT
 
 _lshift:
     ds_underflow 2
     movzx ecx, byte [DATA_TOS_REG - CELL_SIZE]
     shl qword [DATA_TOS_REG - 2*CELL_SIZE], cl
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 _rshift:
     ds_underflow 2
     movzx ecx, byte [DATA_TOS_REG - CELL_SIZE] ; cl
     shr qword [DATA_TOS_REG - 2*CELL_SIZE], cl
     sub DATA_TOS_REG, CELL_SIZE
-    jmp _next
+    _NEXT
 
 ; ************************ comparison ******************** ;
 
@@ -461,10 +462,10 @@ _lt:
     cmp r8, [DATA_TOS_REG]
     jl .true
     mov qword [DATA_TOS_REG - CELL_SIZE], -0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 _lte:
     ds_underflow 2
@@ -473,10 +474,10 @@ _lte:
     cmp r8, [DATA_TOS_REG]
     jle .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 _eq:
     ds_underflow 2
@@ -485,10 +486,10 @@ _eq:
     cmp r8, [DATA_TOS_REG]
     je .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 _gte:
     ds_underflow 2
@@ -497,10 +498,10 @@ _gte:
     cmp r8, [DATA_TOS_REG]
     jge .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 _gt:
     ds_underflow 2
@@ -509,40 +510,40 @@ _gt:
     cmp r8, [DATA_TOS_REG]
     jg .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 _0eq:
     ds_underflow 1
     cmp qword [DATA_TOS_REG - CELL_SIZE], 0
     je .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 _0lt:
     ds_underflow 1
     cmp qword [DATA_TOS_REG - CELL_SIZE], 0
     jl .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 _0gt:
     ds_underflow 1
     cmp qword [DATA_TOS_REG - CELL_SIZE], 0
     jg .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 _ult:
     ds_underflow 2
@@ -551,10 +552,10 @@ _ult:
     cmp r8, [DATA_TOS_REG]
     jb .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 _ne:
     ds_underflow 2
@@ -563,10 +564,10 @@ _ne:
     cmp qword [DATA_TOS_REG], r8
     jne .true
     mov qword [DATA_TOS_REG - CELL_SIZE], 0
-    jmp _next
+    _NEXT
     .true:
     mov qword [DATA_TOS_REG - CELL_SIZE], -1
-    jmp _next
+    _NEXT
 
 ; ********************* dictionary / compilation ****************** ;
 
@@ -580,7 +581,7 @@ _find_word:
     add rsp, 32
     stack_pushq rax, DATA_TOS_REG ; addr | XT
     stack_pushq rdx, DATA_TOS_REG ; 0 = not found (nos=addr), -1 = regular (nos=XT), 1 = immediate (nos=XT)
-    jmp _next
+    _NEXT
 
 _comma: ; write TOS to here, increment here
     ds_underflow 1
@@ -588,7 +589,7 @@ _comma: ; write TOS to here, increment here
     mov r9, [rel here]
     mov [r9], r8
     add qword [rel here], CELL_SIZE
-    jmp _next
+    _NEXT
 
 _char_comma:
     ds_underflow 1
@@ -596,7 +597,7 @@ _char_comma:
     mov r9, [rel here]
     mov byte [r9], r8b
     add qword [rel here], 1
-    jmp _next
+    _NEXT
 
 ; (addr -- <value> <success>)
 _to_number:
@@ -606,13 +607,13 @@ _to_number:
     call to_number
     stack_pushq rdx, DATA_TOS_REG
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 
 ; ************************* outer loop ********************** ;
 
 _accept: ;TODO: implement
-    jmp _next
+    _NEXT
 
 ; skip_space operates on input_buffer and input_pos, and relies on input_buffer being terminated with `\n\0`
 skip_space:
@@ -670,7 +671,7 @@ _word:
         ; load character
         movzx r9d, byte [r8]
         ;   if character is white space (including '\n`)
-        ;    update and jmp _next
+        ;    update and _NEXT
         cmp r9b, 0
         je .exit
         cmp r9b, 10
@@ -704,7 +705,7 @@ _word:
         sub r8, r9
         mov [rel input_pos], r8
         pop r15
-        jmp _next
+        _NEXT
 
 _run:
     ds_underflow 1
@@ -713,7 +714,7 @@ _run:
 
 _refill:
     call refill_internal
-    jmp _next
+    _NEXT
 
 ; refill input buffer from source
 ; TODO: bytes_read disaagrees with the buffer length because it ignores the trailing newline-ish characters
@@ -877,7 +878,7 @@ _message:
     lea rcx, [rel message]
     call printf
     add rsp, 32
-    jmp _next
+    _NEXT
 
 _ok:
     lea r8, [rel file_pointer_stack]
@@ -889,14 +890,14 @@ _ok:
     call printf
     add rsp, 32
     .done:
-    jmp _next
+    _NEXT
 
 _bye:
     jmp main.fault
 
 _pause:
     int3
-    jmp _next
+    _NEXT
 
 _abort:
     lea DATA_TOS_REG, [rel data_stack]
@@ -919,7 +920,7 @@ _fopen:
     call fopen
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 ; ( ... fpointer -- flag ) close a file: fclose
 _fclose:
@@ -929,7 +930,7 @@ _fclose:
     call fclose
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 ; ( ... pbuffer size count fpointer -- count ) read count values with specified size into pbuffer from fpointer,
 ;                                             puts number of items read onto data_stack: fread
@@ -944,7 +945,7 @@ _fread:
     call fread
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 ; ( ... pbuffer size count fpointer -- count ) write count values with specified size from pbuffer into fpointer,
 ;                                             puts number of items written onto data_stack: fread
@@ -959,7 +960,7 @@ _fwrite:
     call fwrite
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 ; ( ... cpointer fpointer -- size ) writes the null-terminated string at cpointer into fpointer, returns the number
 ;                                   of bytes written: fputs
@@ -971,7 +972,7 @@ _fputs:
     call fputs
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 ; ( ... fpointer offset whence -- success ) change the read/write position in fpointer by offset relative to
 ;                                           whence code {SEEK_SET|0: begginning SEEK_CUR|1: current position
@@ -988,7 +989,7 @@ _fseek:
     call fseek
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 ; ( ... fpointer -- offset ) find the current read/write location in fpointer: ftell
 _ftell:
@@ -998,7 +999,7 @@ _ftell:
     call ftell
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 ; ( ... fpointer -- eof) pushes 0 to data stack if read past EOF, otherwise pushes nonzero: feof
 _feof:
@@ -1008,7 +1009,7 @@ _feof:
     call fseek
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 ; ( ... fpointer -- err ) pushes nonzero onto the data stack if any I/O error has occurred, otherwise pushes 0: ferror
 _ferror:
@@ -1018,7 +1019,7 @@ _ferror:
     call ferror
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 ; ( ... fpointer -- ... ) clears errors and eof on fpointer: clearerr
 _clearerr:
@@ -1028,25 +1029,25 @@ _clearerr:
     call clearerr
     stack_pushq rax, DATA_TOS_REG
     ; c_reg_restore
-    jmp _next
+    _NEXT
 
 _fps:
     ds_overflow 1
     lea r8, [rel file_pointer_stack]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _fp_tos:
     ds_overflow 1
     lea r8, [rel fp_tos]
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _fps_size:
     ds_overflow 1
     mov r8, FILE_POINTER_STACK_SIZE * POINTER_SIZE
     stack_pushq r8, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 ; ***************************** heap management **************************** ;
 
@@ -1059,7 +1060,7 @@ _malloc:
     stack_pushq rax, DATA_TOS_REG ; ptr
     add rsp, 32
     c_reg_restore
-    jmp _next
+    _NEXT
 
 _calloc:
     ds_underflow 2
@@ -1071,7 +1072,7 @@ _calloc:
     stack_pushq rax, DATA_TOS_REG ;ptr
     add rsp, 32
     c_reg_restore
-    jmp _next
+    _NEXT
 
 _realloc:
     ds_underflow 2
@@ -1083,7 +1084,7 @@ _realloc:
     stack_pushq rax, DATA_TOS_REG ; ptr
     add rsp, 32
     c_reg_restore
-    jmp _next
+    _NEXT
 
 _free:
     ds_underflow 1
@@ -1093,5 +1094,5 @@ _free:
     call free
     add rsp, 32
     c_reg_restore
-    jmp _next
+    _NEXT
 

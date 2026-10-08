@@ -2,11 +2,11 @@ section .text
 ;*************************** callback handler *********************************;
 
 WndProc:
-    ; restore the interpreter state from at least r12-r15
-    ; rcx, rdx, r8, r9, xmm0-xmm3 are all caller-saved. r12-215 are callee-saved, but they're not
-    ; guaranteed to be saved when our callback is called because the calling function hasn't returned.
-
-    ; I think I need to preserve all of the caller-saved registers when I start by pushing them onto the stack,
-    ; in addition to the callee-saved ones, on entry
-
+    ; push all nonvolatile registers
+    ; push vm state
+    ; load DATA_TOS_REG and RETURN_TOS_REG
+    ; push callback arguments onto the data stack.
+    ; TODO: I need a way to define callback arguments and return values in `bind`
+    ; set IP_REG and _NEXT
+    ; pop all nonvolatile registers
     ret

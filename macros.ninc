@@ -112,7 +112,7 @@
     lea RETURN_TOS_REG, [rel return_stack]
     lea IP_REG, [rel label_quit + CFA_OFFSET + 2*POINTER_SIZE] ; explicitly skip docol
     mov rbp, [rel main_rbp]
-    jmp _next
+    _NEXT
     .callback_restore:
     int3
 %endmacro
@@ -121,7 +121,7 @@
     sub rsp, %2
     call %1
     add rsp, %2
-    jmp _next
+    _NEXT
 %endmacro
 
 %macro masked_dict_entry 4 ; prev, word, label, mask
@@ -209,4 +209,25 @@
     pop r8
     pop rdx
     pop rcx
+%endmacro
+
+%macro push_vm_state 0
+    push [rel vm_state     ]
+    push [rel vm_state +  8]
+%endmacro
+
+%macro stash_vm_state 0
+    mov [rel vm_state     ], RETURN_TOS_REG
+    mov [rel vm_state +  8], DATA_TOS_REG
+%endmacro
+
+%macro pop_vm_state 0
+    pop [rel vm_state +  8]
+    pop [rel vm_state     ]
+%endmacro
+
+%macro _NEXT 0
+    mov W_REG, [IP_REG]
+    add IP_REG, POINTER_SIZE
+    jmp [W_REG]
 %endmacro

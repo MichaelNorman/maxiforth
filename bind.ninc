@@ -5,7 +5,7 @@ _lla:
     stack_popq rcx, DATA_TOS_REG ; lpLibFileName
     call LoadLibraryA
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _gpa:
     ds_underflow 2
@@ -13,15 +13,15 @@ _gpa:
     stack_popq rcx, DATA_TOS_REG ; hModule
     call GetProcAddress
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _do_call:
+    ; put the address to call into r11
     mov r11, [IP_REG]
-    c_reg_stash
+    stash_vm_state
     call r11 ; `bind` has done all the work of loading the registers. God help us all.
     add IP_REG, POINTER_SIZE ; step over the data cell
-    c_reg_restore
-    jmp _next
+    _NEXT
 
 ; bind signature can be represented by: [vqdufF](;|[ifF]*)?
 ; A return code is mandatory; the optional |-suffix lists argument codes, one per
@@ -73,101 +73,101 @@ cfa_arg4F:                  dq _arg4F
 _arg1u:
     stack_popq r10, DATA_TOS_REG ; value
     mov ecx, r10d
-    jmp _next
+    _NEXT
 
 _arg1i:
     stack_popq rcx, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 _arg1d:
     stack_popq r10, DATA_TOS_REG
     movsxd rcx, r10d
-    jmp _next
+    _NEXT
 
 _arg1f:
     stack_popq r11, DATA_TOS_REG
     movd xmm0, r11d
-    jmp _next
+    _NEXT
 
 _arg1F:
     stack_popq r10, DATA_TOS_REG
     movq xmm0, r10
-    jmp _next
+    _NEXT
 
 _arg2u:
     stack_popq r10, DATA_TOS_REG ; value
     mov edx, r10d
-    jmp _next
+    _NEXT
 
 _arg2i:
     stack_popq r10, DATA_TOS_REG
     mov rdx, r10
-    jmp _next
+    _NEXT
 
 _arg2d:
     stack_popq r10, DATA_TOS_REG
     movsxd rdx, r10d
-    jmp _next
+    _NEXT
 
 _arg2f:
     stack_popq r11, DATA_TOS_REG
     movd xmm1, r11d
-    jmp _next
+    _NEXT
 
 _arg2F:
     stack_popq r10, DATA_TOS_REG
     movq xmm1, r10
-    jmp _next
+    _NEXT
 
 _arg3u:
     stack_popq r10, DATA_TOS_REG ; value
     mov r8d, r10d
-    jmp _next
+    _NEXT
 
 _arg3i:
     stack_popq r10, DATA_TOS_REG
     mov r8, r10
-    jmp _next
+    _NEXT
 
 _arg3d:
     stack_popq r10, DATA_TOS_REG
     movsxd r8, r10d
-    jmp _next
+    _NEXT
 
 _arg3f:
     stack_popq r11, DATA_TOS_REG
     movd xmm2, r11d
-    jmp _next
+    _NEXT
 
 _arg3F:
     stack_popq r10, DATA_TOS_REG
     movq xmm2, r10
-    jmp _next
+    _NEXT
 
 _arg4u:
     stack_popq r10, DATA_TOS_REG ; value
     mov r9d, r10d
-    jmp _next
+    _NEXT
 
 _arg4i:
     stack_popq r10, DATA_TOS_REG
     mov r9, r10
-    jmp _next
+    _NEXT
 
 _arg4d:
     stack_popq r10, DATA_TOS_REG
     movsxd r9, r10d
-    jmp _next
+    _NEXT
 
 _arg4f:
     stack_popq r11, DATA_TOS_REG
     movd xmm3, r11d
-    jmp _next
+    _NEXT
 
 _arg4F:
     stack_popq r10, DATA_TOS_REG
     movq xmm3, r10
-    jmp _next
+    _NEXT
 
 bind_arg1:
     ; r10 contains the address of the type specifier
@@ -322,12 +322,12 @@ _movrsp:
     mov r8, [IP_REG]
     sub rsp, r8
     add IP_REG, POINTER_SIZE
-    jmp _next
+    _NEXT
 
 _rsp:
     ds_overflow 1
     stack_pushq rsp, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 ; ( psigspec n -- <stack loading tokens placed in reverse order> )
 _bindrargs:
@@ -348,7 +348,7 @@ _bindrargs:
     je .2args
     cmp r11, 1
     je .1arg
-    jmp _next
+    _NEXT
     .4args:
     call bind_arg4
     dec r10
@@ -361,7 +361,7 @@ _bindrargs:
     .1arg:
     call bind_arg1
 
-    jmp _next
+    _NEXT
 
 _bindret:
     ; stack has the return code on it, which can be any of the following values:
@@ -432,66 +432,66 @@ _bindret:
     .load_and_next:
     mov [rdi], r11
     add qword [rel here], POINTER_SIZE
-    jmp _next
+    _NEXT
 
 
 cfa_B_ret: dq _do_B_ret
 _do_B_ret:
     ds_overflow 1
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 cfa_f_ret: dq _do_f_ret
 _do_f_ret:
     ds_overflow 1
     movd eax, xmm0
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 cfa_F_ret: dq _do_F_ret
 _do_F_ret:
     ds_overflow 1
     movq rax, xmm0
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 cfa_q_ret: dq _do_q_ret
 _do_q_ret:
     ds_overflow 1
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 cfa_d_ret: dq _do_d_ret
 _do_d_ret:
     ds_overflow 1
     movsxd rax, eax
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 cfa_1_ret: dq _do_1_ret
 _do_1_ret:
     ds_overflow 1
     movzx eax, al
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 cfa_2_ret: dq _do_2_ret
 _do_2_ret:
     ds_overflow 1
     movzx eax, ax
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 cfa_4_ret: dq _do_4_ret
 _do_4_ret:
     ds_overflow 1
     mov eax, eax
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT
 
 cfa_u_ret: dq _do_u_ret
 _do_u_ret:
     ds_overflow 1
     mov eax, eax
     stack_pushq rax, DATA_TOS_REG
-    jmp _next
+    _NEXT

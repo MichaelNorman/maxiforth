@@ -238,8 +238,7 @@ section .data
     regular_entry _ftell, "feof", _feof
     regular_entry _feof, "ferror", _ferror
     regular_entry _ferror,"clearerr", _clearerr
-    regular_entry _clearerr, "next", _next
-    regular_entry _next, "refill", _refill
+    regular_entry _clearerr, "refill", _refill
     regular_entry _refill, "docol", _docol
     regular_entry _docol, "exit", _exit
     regular_entry _exit, "branch", _branch
@@ -358,6 +357,7 @@ section .bss
     digit_buffer          resb 31
     number_buffer         resb 33
     in_callback           resb 1
+    vm_state              resq 2
 
 
 section .text
@@ -401,6 +401,13 @@ main:
     ; start out not in a callback
     mov byte [rel in_callback], 0
     mov qword [rel bytes_read], 0
+
+    ; set up our initial state
+    xor rax, rax
+    mov rcx, 2
+    lea rdi, [rel vm_state]
+    rep stosq
+
     sub rsp, 32
     lea rax, [rel initial_latest]
     mov [rel latest], rax
@@ -432,7 +439,7 @@ main:
     .start:
     ; jump start quit loop
     lea IP_REG, [rel quit_body + 2*POINTER_SIZE] ; skip cfa_docol
-    jmp _next
+    _NEXT
     
     .fault:
     leave_call
