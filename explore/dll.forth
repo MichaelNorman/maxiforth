@@ -98,7 +98,7 @@ var regargs
 : rettype 8 + c@ ;
 
 \ ( pfunc psigspec - < binding created for for pfunc with the dictionary entry supplied by the user> )
-: bind create here 16 - dp ! [ ' docol @ ] literal , 0 ,
+: bind :
     config-bind \ ( psigspec -- psigspec )
     ['] movrsp ,
     offset @ ,
@@ -126,7 +126,7 @@ var regargs
 
     ['] movrsp ,
     0 offset @ - ,
-    ['] exit ,
+    ['] ; run
 
     0 regargs !
     0 stackargs !

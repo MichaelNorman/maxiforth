@@ -1,6 +1,7 @@
 %ifndef DEFINES
 %include "defines.ninc"
 %endif
+
 section .text
 
 %include "bind.ninc"
@@ -11,10 +12,16 @@ section .text
 ; post: The CFA pointed to by IP is in W, IP advances one cell, execution has jumped to [W]
 ; summary: Walks along a string of CFAs and runs them.
 ; VESTIGIAL: InlineD via  macro _NEXT
-_next:
-    mov W_REG, [IP_REG]
-    add IP_REG, POINTER_SIZE
-    jmp [W_REG]
+; _next:
+;    mov W_REG, [IP_REG]
+;    add IP_REG, POINTER_SIZE
+;    jmp [W_REG]
+
+;%macro _NEXT 0
+;    mov W_REG, [IP_REG]
+;    add IP_REG, POINTER_SIZE
+;    jmp [W_REG]
+;%endmacro
 
 ; pre : W holds the CFA of a valid colon definition whose following token begins the word's body
 ; post: IP has been pushed onto the return stack, IP points at start of colon definition body
@@ -892,7 +899,7 @@ _ok:
     .done:
     _NEXT
 
-_bye:
+_bye: ; TODO: This should be an ordinary exit(0), not a fault.
     jmp main.fault
 
 _pause:

@@ -124,16 +124,6 @@ create 'lit ' lit , \ put lit into the dictionary
 : literal 'lit @ , , ; immediate  \ bakes in [xt_lit][tos]
 : ['] ' 'lit @ , , ; immediate \ bake a word literal in: [xt_lit][xt_ticked_word]
 
-: (does>)  latest @ 40 + dup ['] dodoes @ swap ! 8 + r> swap ! ;
-: does> ['] (does>) , ; immediate
-
-: var create 0 , ;
-: const create , does> @ ;
-: allot here + dp ! ;
-
-: cells 8 * ; \ readable way to talk about memory cells, such as: my_ptr 5 cells +
-: cell 8 ;
-
 \ if/else/then
 : if ['] 0branch , here 0 , ; immediate
 
@@ -172,6 +162,15 @@ create 'lit ' lit , \ put lit into the dictionary
 
 \ strings
 
+: (does>)  latest @ 40 + dup ['] dodoes @ swap ! 8 + r> swap ! ;
+: does> ['] (does>) , ; immediate
+: var create 0 , ;
+: const create , does> @ ;
+: allot here + dp ! ;
+
+: cells 8 * ; \ readable way to talk about memory cells, such as: my_ptr 5 cells +
+: cell 8 ;
+
 \ >in  index into tib
 \ tib  top of input buffer
 \ mib number of bytes read
@@ -205,8 +204,10 @@ create 'lit ' lit , \ put lit into the dictionary
                                                 \ leave a copy of the start address
     begin next-rchar dup 32 = while drop repeat \ skip leading spaces
     begin
-        dup 34 = if        \ hit the bare quote
-            drop 0 c,      \ null terminator
+        dup 34 =
+        if                 \ hit the bare quote
+            drop           \ drop `"`
+            0 c,           \ null terminator
             dup 1 cells +  \ point at start of string
             here 1 -       \ point to end of string and don't count the trailing null
             swap - swap !  \ write length to start cell
@@ -418,6 +419,19 @@ create words-buffer 40 allot
     repeat
 ;
 
+\ Give the programmer a chance by showing the base in base 10:
+: show-base
+    10 emit
+    get-base 8 =
+    if
+        56 emit exit
+    then
+    get-base 10 =
+    if
+        49 emit 48 emit exit
+    then
+    49 emit 54 emit
+;
 \ This is the hook into additional user-specified bootup code.
 include @MAXIFORTH_ROOT@\custom\custom.forth
 

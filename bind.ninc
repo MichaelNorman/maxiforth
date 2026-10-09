@@ -1,3 +1,6 @@
+
+;%include "primitives.ninc"
+
 ; ********************************* calling & DLLs ******************************** ;
 
 _lla:
@@ -379,8 +382,9 @@ _bindret:
     mov rdi, [rel here]
     stack_popq r10, DATA_TOS_REG
     cmp r10b, 'v'
-    je _next
-
+    jne .no_next
+    _NEXT
+    .no_next:
     cmp r10b, 'B'
     jne .check_f
     lea r11, [rel cfa_B_ret]
