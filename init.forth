@@ -267,7 +267,8 @@ sp@ 1 cells - sp! \ we already know where this lives.
 : prep-buffer dup end-digit rev-ptr ! rev-ptr @ 1 + 0 swap c! set-neg ;
 
 : acc-digits
-    dup 0 = if
+    dup 0 =
+    if
         digit-for pnext-digit c!              \ ( num -- <character for digit stored> )
     else
         begin
@@ -282,7 +283,8 @@ sp@ 1 cells - sp! \ we already know where this lives.
 ;
 
 : handle-sign
-    neg @ if
+    neg @
+    if
         pnext-digit dup 45 swap c!            \ ( -- start-ptr <`-` written> )
     else
         rev-ptr @ 1 +                         \ ( -- start-ptr <no `-` written> )
@@ -369,7 +371,8 @@ var stackp
  d" Double-free detected! Aborting..." const dbl-free-err
 : var-free
     dup @ dup             \ ( ptr-var -- ptr-var ptr ptr)
-    0= if                 \ ( ptr-var -- ptr-var ptr )
+    0=
+    if                    \ ( ptr-var -- ptr-var ptr )
         lf dbl-free-err type abort
     then
     free                  \ ( ptr-var ptr -- ptr-var )
@@ -401,7 +404,7 @@ create words-buffer 40 allot
         done-last @ false =
     while
         current-word @ cell + c@
-        64 and 0 =
+        64 and 0=
         if
             fill-ws-buffer
             words-buffer type
@@ -410,7 +413,7 @@ create words-buffer 40 allot
 
         current-word @ @
 
-        dup 0 =
+        dup 0=
         if
             true done-last ! drop
         else

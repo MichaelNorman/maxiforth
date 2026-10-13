@@ -2,6 +2,12 @@
 %define BOUNDS_CHECK
 %endif
 
+%macro _NEXT 0
+    mov W_REG, [IP_REG]
+    add IP_REG, POINTER_SIZE
+    jmp [W_REG]
+%endmacro
+
 %macro enter_call 0
     push rbx
     push rbp
@@ -224,10 +230,4 @@
 %macro pop_vm_state 0
     pop [rel vm_state +  8]
     pop [rel vm_state     ]
-%endmacro
-
-%macro _NEXT 0
-    mov W_REG, [IP_REG]
-    add IP_REG, POINTER_SIZE
-    jmp [W_REG]
 %endmacro
