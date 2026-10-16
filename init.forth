@@ -182,7 +182,12 @@ create 'lit ' lit , \ put lit into the dictionary
 : ib-end tib mib + 1 - ; \ pointer to end of buffer
 : at-end pib ib-end >= ;
 
-: valid-refill begin at-end while refill repeat ; \ skip empty lines from input
+: valid-refill
+    begin
+        at-end
+    while \ skip empty lines from input
+        refill
+    repeat ;
 
 : next-rchar
     valid-refill \ Either we were okay to start with or we are at the start of a new buffer
@@ -347,12 +352,18 @@ var stackp
 
 : write-0-char dup 0 swap c! ;
 \ ( end-addr -- <trailing CR LF, if present, removed, null-terminated> )
-: trim-end
+
+: find-end
     begin
-        dup c@ 0=
+        dup c@
+        0=
     while
-        1 -
+       1 -
     repeat
+;
+
+: trim-end
+    find-end
     dup c@ 10 = if write-0-char 1 - then
     dup c@ 13 = if write-0-char 1 - then
     drop
@@ -384,7 +395,7 @@ var current-word
 var done-last
 create words-buffer 40 allot
 
-: >wordlen c@ 96 invert and ;
+: >wordlen c@ 96 invert and ; \ IMMEDIATE | SMUDGE = 96
 \ ( -- <dictword is converted and stored in pbuffer> )
 : fill-ws-buffer
     words-buffer current-word @
