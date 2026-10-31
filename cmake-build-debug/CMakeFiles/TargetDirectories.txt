@@ -1,0 +1,3 @@
+C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/maxiForth.dir
+C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/rebuild_cache.dir

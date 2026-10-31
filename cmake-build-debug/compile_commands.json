@@ -1,0 +1,8 @@
+[
+{
+  "directory": "C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug",
+  "command": "C:\\mingw64\\bin\\gcc.exe -g -fdiagnostics-color=always -o CMakeFiles\\maxiForth.dir\\dummy.c.obj -c C:\\Users\\mknor\\CLionProjects\\core_forth\\cmake-build-debug\\dummy.c",
+  "file": "C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/dummy.c",
+  "output": "C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/maxiForth.dir/dummy.c.obj"
+}
+]

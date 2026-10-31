@@ -209,7 +209,7 @@ create 'lit ' lit , \ put lit into the dictionary
 ;
 
 \ dictionary string, as opposed to a heap string.
-:  d"
+: d"
     here dup 0 ,                                \ skip length word to first character byte and
                                                 \ leave a copy of the start address
     begin next-rchar dup 32 = while drop repeat \ skip leading spaces
