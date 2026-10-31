@@ -25,6 +25,7 @@ ptr_mba !
 
 h" d|iiii" mba_sigstr !
 
+\ *************** BIND STEP ******************** \
 ptr_mba @ mba_sigstr @ bind MBOX
 
 h" Forth message" mba_caption !

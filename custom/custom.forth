@@ -5,3 +5,4 @@
 include @MAXIFORTH_ROOT@\custom\heap-strings.forth
 include @MAXIFORTH_ROOT@\explore\dll.forth
 include @MAXIFORTH_ROOT@\explore\mba.forth
+include @MAXIFORTH_ROOT@\explore\cbtest.forth

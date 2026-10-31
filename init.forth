@@ -40,12 +40,12 @@ create smudge here 16 - dp ! ' docol @ , 0 ,
 8 ,
 ' + ,
 ' dup ,
-' @ ,
+' c@ ,
 ' lit ,
 64 ,
 ' or ,
 ' swap ,
-' ! ,
+' c! ,
 ' exit ,
 
 create unsmudge here 16 - dp ! ' docol @ , 0 ,
@@ -55,13 +55,13 @@ create unsmudge here 16 - dp ! ' docol @ , 0 ,
 8 ,
 ' + ,
 ' dup ,
-' @ ,
+' c@ ,
 ' lit ,
 64 ,
 ' invert ,
 ' and ,
 ' swap ,
-' ! ,
+' c! ,
 ' exit ,
 
 create immediate here 16 - dp ! ' docol @ , 0 ,
@@ -259,7 +259,7 @@ var neg
 var digit-string
 here 1 cells - dp !
  d" 0123456789abcdef"
-sp@ 1 cells - sp! \ we already know where this lives.
+drop \ we already know where this lives.
 
 \ fetch the ASCII for the digit, regardless of base (up to 16)
 : digit-for digit-string 1 cells + + c@ ;
@@ -386,6 +386,7 @@ var stackp
     if                    \ ( ptr-var -- ptr-var ptr )
         lf dbl-free-err type abort
     then
+    \ [ ' pause , ]
     free                  \ ( ptr-var ptr -- ptr-var )
     0 swap !              \ ( ptr-var -- <0 stored in ptr-var> )
 ;

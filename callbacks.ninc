@@ -2,11 +2,72 @@ section .text
 ;*************************** callback handler *********************************;
 
 WndProc:
-    ; push all nonvolatile registers
-    ; push vm state
+; enter_call. It leaves rcx, rdx, r8, and r9 untouched.
+; push_vm_state, push in_callback, then subtract 8 more bytes for the pad. rsp is 16-aligned again.
+; Load DATA_TOS_REG from vm_state+8 and RETURN_TOS_REG from vm_state+0.
+; Store 1 in in_callback.
+; Use stack_pushq to push rcx, rdx, r8, r9 onto the data stack, in that order, so
+; lParam ends on top. Stash rcx and rdx before running ds_overflow before the
+; stack_pushq macros and restore afterwards.
+; Point IP_REG at thread cell 0.
+; _NEXT.
+
+    enter_call ; push all nonvolatile registers
+    push_vm_state ; push vm state
+    sub rsp, 8
+    push qword [rel in_callback]
     ; load DATA_TOS_REG and RETURN_TOS_REG
+    mov DATA_TOS_REG, [rel vm_state +  POINTER_SIZE]
+    mov RETURN_TOS_REG, [rel vm_state]
+    ; note that we're in a callback
+    mov qword [rel in_callback], 1
     ; push callback arguments onto the data stack.
-    ; TODO: I need a way to define callback arguments and return values in `bind`
+    push rcx
+    push rdx
+    ds_overflow 4
+    pop rdx
+    pop rcx
+    stack_pushq rcx, DATA_TOS_REG
+    stack_pushq rdx, DATA_TOS_REG
+    stack_pushq r8, DATA_TOS_REG
+    stack_pushq r9, DATA_TOS_REG
     ; set IP_REG and _NEXT
-    ; pop all nonvolatile registers
+    lea IP_REG, [rel cb_thread]
+    _NEXT
+
+; private word for callback return
+
+cfa_cb_ret:                 dq _cb_ret
+
+_cb_ret:
+    push rcx
+    push rdx
+    ds_underflow 1
+    pop rdx
+    pop rcx
+    stack_popq rax, DATA_TOS_REG
+    add rsp, 8
+    pop qword [rel in_callback]
+    pop_vm_state
+    leave_call
     ret
+
+section .data
+
+cb_thread:  dq 0, cfa_cb_ret
+
+section .text
+
+; words for pushing the addresses of WndProc and cb_thread
+
+_wndproc:
+    ds_overflow 1
+    lea r8, [rel WndProc]
+    stack_pushq r8, DATA_TOS_REG
+    _NEXT
+
+_cb_thread:
+    ds_overflow 1
+    lea r8, [rel cb_thread]
+    stack_pushq r8, DATA_TOS_REG
+    _NEXT

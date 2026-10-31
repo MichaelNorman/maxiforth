@@ -133,7 +133,7 @@ section .data
             dq cfa_0branch      ; ( -1 -- <continue> ) | ( 0 -- <jmp exit> )
             dq .exit - $
             ; get a word
-            dq cfa_wbuf        ; ( -- addr )
+            dq cfa_wbuf         ; ( -- addr )
             dq cfa_word         ; ( addr -- addr ) {Actually, it's ( -- ) but an address must be present}
             ; exit on 0-length word
             dq cfa_dup          ; ( addr -- addr addr )
@@ -324,7 +324,9 @@ section .data
     regular_entry _bindrargs, "rsp", _rsp
     regular_entry _rsp, "bindret", _bindret
     regular_entry _bindret, "do_call", _do_call
-    regular_entry _do_call, "wbuf", push_wbuf
+    regular_entry _do_call, "wndproc", _wndproc
+    regular_entry _wndproc, "cbtramp", _cb_thread
+    regular_entry _cb_thread, "wbuf", push_wbuf
     initial_latest:
     regular_entry push_wbuf, "accept", _accept
 
@@ -356,7 +358,7 @@ section .bss
     negative              resb 1
     digit_buffer          resb 31
     number_buffer         resb 33
-    in_callback           resb 1
+    in_callback           resq 1
     vm_state              resq 2
 
 
@@ -399,7 +401,7 @@ main:
     mov [rel main_rbp], rbp
 
     ; start out not in a callback
-    mov byte [rel in_callback], 0
+    mov qword [rel in_callback], 0
     mov qword [rel bytes_read], 0
 
     ; set up our initial state

@@ -10,7 +10,7 @@
 
 92 const backslash
 
- d" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
+d" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
 
 : safe-read
     begin
