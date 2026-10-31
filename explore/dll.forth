@@ -117,12 +117,8 @@ var regargs
 
     swap , \ get the function address on top and comma it in
 
-    dup rettype \ consume psigspec (config-bind is a no-op on the stack)
-    118 <>
-    if
-        rettype
-        bindret
-    then
+    rettype
+    bindret
 
     ['] movrsp ,
     0 offset @ - ,

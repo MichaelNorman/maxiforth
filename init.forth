@@ -3,7 +3,12 @@ here word docol find drop @ , 0 ,
 here word wbuf find drop ,
 here word word find drop ,
 here word find find drop ,
+here word 0branch find drop ,
+16 ,
+here word exit find drop ,
 here word drop find drop ,
+here word lit find drop ,
+0 ,
 here word exit find drop ,
 
 latest @ , here 8 - latest ! here word create 32 + dp !

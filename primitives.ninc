@@ -69,10 +69,12 @@ _0branch:
     stack_popq r8, DATA_TOS_REG
     test r8, r8
     jnz .no_jmp
+    ; read value in slot after 0branch in running word
     mov r8, [IP_REG]
     add IP_REG, r8
     _NEXT
     .no_jmp:
+    ; skip value in slot after 0branch in running word. Essentially `continue`.
     add IP_REG, POINTER_SIZE
     _NEXT
 
