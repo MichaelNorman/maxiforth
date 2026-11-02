@@ -20,6 +20,7 @@ d" \nUnknown escape sequence encountered. Aborting...\n" const bad-esc-msg
                        false then then then
     while
         refill
+        drop
     repeat
     \ safe to get a character now
     pib c@ 1 >in +!
@@ -51,26 +52,32 @@ d" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-all
 ;
 
 : update-str
-    hstr-ptr @ 1 cells +
-    hstr-start-ptr !
+    \ assign hstr-start-ptr to the start of the C-style string.
+    hstr-ptr @ 1 cells + hstr-start-ptr !
+    \ double the buffer size
     hstr-buff-sz @ 1 <<  hstr-buff-sz !
 ;
 
+: ?mem-fail-abort
+    if
+        hstr-mem-alloc-fail type reset-str abort
+    then
+;
+
 : safe-write
-    hstr-index @ hstr-buff-sz @ 1 - >=
+    hstr-index @ cell 1 + + hstr-buff-sz @ >= \ `cell` accounts for the length byte, `1` is index-vs-length
     if
         hstr-ptr @
         hstr-buff-sz @ 1 <<
         realloc
         hstr-ptr !
         hstr-ptr @ 0 =
-        if
-            hstr-mem-alloc-fail type reset-str abort
-        then
+        ?mem-fail-abort
+        update-str
     then
-    update-str
-    hstr-start-ptr @ hstr-index @ + c!
-    1 hstr-index +!
+
+    hstr-start-ptr @ hstr-index @ + c!   \ update the write location
+    1 hstr-index +!                      \ move to first unwritten character
 ;
 
 : resolve-escape

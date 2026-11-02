@@ -16,13 +16,12 @@ var errstr
             errstr @ type
             errstr var-free
             sigstr var-free
-            pause
             abort
         then
     ;
 
 \ Convenience word for calling gpa
-    : u32gpa cu32 fstr @ gpa fstr var-free ;
+    : u32gpa cu32 fstr @ cstr gpa fstr var-free ;
 
 \ Convenience word for binding with sigstr
     : sigbind sigstr @ bind ;
@@ -34,9 +33,7 @@ var errstr
     h" q|i" sigstr !
 
 \ GetModuleHandleA	kernel32	HMODULE GetModuleHandleA(LPCSTR lpModuleName);
-    h" GetModuleHandleA" fstr !
-    h" Could not find GetModuleHandleA. Aborting.\n" errstr !
-    ezbind getmodulehandle
+\ use `gmha`
 
 
 \ TranslateMessage	user32	BOOL TranslateMessage(const MSG *lpMsg);
@@ -55,12 +52,11 @@ var errstr
     ezbind dispatchmsg
 
     sigstr var-free
-
 \ ---------- custom sigstr items ------------------ \
 : frezbind ezbind sigstr var-free ;
 
 \ PostQuitMessage	user32	void PostQuitMessage(int nExitCode);
-    h" u|i" sigstr !
+    h" v|i" sigstr !
     h" PostQuitMessage" fstr !
     h" Could not find PostQuitMessage. Aborting.\n" errstr !
     frezbind postquitmsg

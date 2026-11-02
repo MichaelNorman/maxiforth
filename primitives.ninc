@@ -125,7 +125,7 @@ _dup:
     stack_pushq r8, DATA_TOS_REG
     _NEXT
 
-_2dup: ; TODO: This contains a bug!
+_2dup:
     ds_underflow 2
     ds_overflow 2
     mov r8, [DATA_TOS_REG - 2*CELL_SIZE] ; 1 below TOS
@@ -169,6 +169,7 @@ _to_return:
     ds_underflow 1
     rs_overflow 1
     stack_popq r8, DATA_TOS_REG
+    int3
     stack_pushq r8, RETURN_TOS_REG
     _NEXT
 
@@ -904,6 +905,8 @@ _ok:
 _bye: ; TODO: This should be an ordinary exit(0), not a fault.
     jmp main.fault
 
+
+_ipause:
 _pause:
     int3
     _NEXT

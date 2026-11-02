@@ -18,6 +18,13 @@ _gpa:
     stack_pushq rax, DATA_TOS_REG
     _NEXT
 
+_gmha:
+    ds_underflow 1
+    stack_popq rcx, DATA_TOS_REG
+    call GetModuleHandleA
+    stack_pushq rax, DATA_TOS_REG
+    _NEXT
+
 _do_call:
     ; put the address to call into r11
     mov r11, [IP_REG]

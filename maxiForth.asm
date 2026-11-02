@@ -223,7 +223,8 @@ section .data
     regular_entry bind_arg4, "arg3", bind_arg3
     regular_entry bind_arg3, "arg2", bind_arg2
     regular_entry bind_arg2, "arg1", bind_arg1
-    regular_entry bind_arg1, "gpa", _gpa
+    regular_entry bind_arg1, "gmha", _gmha
+    regular_entry _gmha, "gpa", _gpa
     regular_entry _gpa, "abort", _abort ; GetProcAddress
     regular_entry _abort, "fps", _fps
     regular_entry _fps, "fptos", _fp_tos
@@ -314,7 +315,8 @@ section .data
     regular_entry _bye, "msg", _message
     regular_entry _message, "ctype", _ctype
     regular_entry _ctype, "dovar", _dovar
-    masked_dict_entry _dovar, "pause", _pause, IMMEDIATE
+    masked_dict_entry _dovar, "ipause", _ipause, IMMEDIATE
+    regular_entry  _ipause, "pause", _pause
     regular_entry _pause, "malloc", _malloc
     regular_entry _malloc, "calloc", _calloc
     regular_entry _calloc, "realloc", _realloc
@@ -391,6 +393,7 @@ section .text
     extern free
     extern LoadLibraryA
     extern GetProcAddress
+    extern GetModuleHandleA
 
 main:
     enter_call

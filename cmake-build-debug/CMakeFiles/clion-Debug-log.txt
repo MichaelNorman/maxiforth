@@ -1,4 +1,4 @@
 C:\Users\mknor\AppData\Local\Programs\CLion\bin\cmake\win\x64\bin\cmake.exe -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=C:/Users/mknor/AppData/Local/Programs/CLion/bin/ninja/win/x64/ninja.exe -DMAXIFORTH_ROOT=C:\Users\mknor\ClionProjects\core_forth\cmake-build-debug -G Ninja -S C:\Users\mknor\CLionProjects\core_forth -B C:\Users\mknor\CLionProjects\core_forth\cmake-build-debug
--- Configuring done (1.3s)
+-- Configuring done (0.2s)
 -- Generating done (0.1s)
 -- Build files have been written to: C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug

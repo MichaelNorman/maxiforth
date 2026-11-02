@@ -173,8 +173,9 @@ create 'lit ' lit , \ put lit into the dictionary
 : const create , does> @ ;
 : allot here + dp ! ;
 
-: cells 8 * ; \ readable way to talk about memory cells, such as: my_ptr 5 cells +
 : cell 8 ;
+: cells cell * ; \ readable way to talk about memory cells, such as: my_ptr 5 cells +
+
 
 \ >in  index into tib
 \ tib  top of input buffer
@@ -192,6 +193,7 @@ create 'lit ' lit , \ put lit into the dictionary
         at-end
     while \ skip empty lines from input
         refill
+        drop
     repeat ;
 
 : next-rchar
