@@ -26,28 +26,40 @@
 \ caller's job, done in Forth before the call.
 
 \ construct a number string from the bits after the pointer, presuming it's a null-terminated string
+
 var numstr 32 allot \ guess that the dictionary is already aligned to 16 bytes
 
 var x
+
+: inc-x 1 x @ + x ! ;
+: get-cstr-char dup x @ + c@ ;
+: write-numstr-char numstr x @ + c! ;
+: write-numstr-len x @ numstr c! ;
 : cstr2numstr
     0 x !
     begin
-        x 31 <
-        dup x + c@ 0 <>
+        x @ 31 <
+        over x @ + c@ 0 <>
         and
-    while
-        dup x @ + c@ \ character at the offset
-        1 x @ + x !
-        numstr x @ + c!
+    while       \ less than 31 and we haven't encountered `0`.
+        get-cstr-char
+        inc-x
+        write-numstr-char
     repeat
-    x @ numstr !
+    write-numstr-len
+    drop
+    numstr
 ;
 
+: ?num-fail-abort if exit then abort ;
 \ ( psigspec -- psigspec argcount )
-: countargs dup
+: countargs
+    dup
     @ 2 - \ get the length from "X|xxxxN"
-    5 = if
-        dup 14 + cstr2numstr >number 4 +
+    4 > if
+        dup 14 + cstr2numstr >number
+        ?num-fail-abort
+        4 +
     else
         dup @ 2 -
     then
@@ -82,16 +94,18 @@ var regargs
 : movsargs
     r>                 \ get the return address, which is the address of the next cell
     dup 8 + >r         \ put the skipped return slot back
-    @ dup              \ get the number of bytes to shave off the stack (The number of bytes to copy.)
-    sp@ - rsp 32 + rot \ set up the stack for cmove
+    @                  \ get the number of bytes to shave off the stack (The number of bytes to copy.)
+    sp@ over - 8 -     \ set up the stack for cmove
+    dup >r
+    rsp 32 + rot
     cmove
-    sp@ swap - dp !    \ finish our "pop" operation
+    r> sp!            \ set top of data stack below args that were just copied
 ;
 
 \ ( argcount -- < XT(movsargs) and the number of arguments to move laid into bound word > )
 \ This is a run-time word and so does not affect `bind`'s stack picture.
 : bindsargs
-    ' movsargs ,
+    ['] movsargs ,
     3 << ,
 ;
 

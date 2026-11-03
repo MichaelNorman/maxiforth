@@ -40,11 +40,6 @@ var errstr
     h" TranslateMessage" fstr !
     h" Could not find TranslateMessage. Aborting.\n" errstr !
     ezbind translatemsg
-
-\ ShowWindow	user32	BOOL ShowWindow(HWND hWnd, int nCmdShow);
-    h" ShowWindow" fstr !
-    h" Could not find ShowWindow. Aborting.\n" errstr !
-    ezbind showwindow
     
 \ DispatchMessageA	user32	LRESULT DispatchMessageA(const MSG *lpMsg);
     h" DispatchMessageA" fstr !
@@ -54,6 +49,12 @@ var errstr
     sigstr var-free
 \ ---------- custom sigstr items ------------------ \
 : frezbind ezbind sigstr var-free ;
+
+\ ShowWindow	user32	BOOL ShowWindow(HWND hWnd, int nCmdShow);
+    h" q|ii" sigstr !
+    h" ShowWindow" fstr !
+    h" Could not find ShowWindow. Aborting.\n" errstr !
+    frezbind showwindow
 
 \ PostQuitMessage	user32	void PostQuitMessage(int nExitCode);
     h" v|i" sigstr !
@@ -74,7 +75,7 @@ var errstr
     frezbind registerclass
 
 \ GetMessageA	user32	BOOL GetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax);
-    h" q|iiii" sigstr !
+    h" d|iiii" sigstr !
     h" GetMessageA" fstr !
     h" Could not find GetMessageA. Aborting.\n" errstr !
     frezbind getmsg

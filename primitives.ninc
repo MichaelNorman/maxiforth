@@ -914,9 +914,35 @@ _pause:
 _abort:
     lea DATA_TOS_REG, [rel data_stack]
     lea RETURN_TOS_REG, [rel return_stack]
+    .free_next_handle:
+    mov rcx, [rel fp_tos]
+    lea r8, [rel file_pointer_stack]
+    cmp rcx, r8
+    jbe .handles_free
+    ; call fclose on the handle
+    sub rcx, 8
+    mov rcx, [rcx]
+    call fclose
+    ; decrement the handle
+    sub qword [rel fp_tos], 8
+    jmp .free_next_handle
+    .handles_free:
+
     lea r8, [rel file_pointer_stack]
     mov [rel fp_tos], r8
     mov qword [rel state], 0
+    ; the safe check to back out of the compiling state is to see if the top word is smudged
+    mov r8, [rel latest]
+    mov r8b, byte [r8 + WORD_OFFSET]
+    test r8b, SMUDGE                   ; Test the length byte for SMUDGE
+    jz .clean_latest                   ; If not smudged, we weren't compiling
+    mov r8, [rel latest]               ; Put the address of the most recent word into r8
+    mov qword [rel here], r8           ; Ensure that compilation will start at the first empty slot
+    mov r8, [r8]                       ; Follow latest->previous
+    mov qword [rel latest], r8         ; Update latest
+    .clean_latest:
+    mov rcx, okstr
+    call printf
     jmp main.start
 
 ; ********************** file I/O ************************** ;

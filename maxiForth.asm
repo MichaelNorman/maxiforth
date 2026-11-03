@@ -86,6 +86,7 @@ section .data
     cfa_ok:                     dq _ok
     cfa_wbuf:                   dq push_wbuf
     cfa_dovar:                  dq _dovar
+    cfa_abort:                  dq _abort
 
     align 16
     static_dictionary:
@@ -147,7 +148,7 @@ section .data
             dq cfa_0eq          ; ( addr 0 | XT (-1|1) )  (0|1)  --   ( addr 0 | XT (-1|1) )  (-1|0) )
             dq cfa_0branch      ; ( ( addr 0 | XT (-1|1) )  (-1|0) --( addr 0 | XT (-1|1) <continue> | <jmp compile>) )
             dq .compile - $     ; --
-            ; in "running" state
+            ; in "running" state here
             dq cfa_dup          ; (addr|XT -1|0|1 -- addr|XT -1|0|1  -1|0|1)
             dq cfa_0branch      ; (addr|XT -1|0|1  -1|0|1 -- XT -1|1 <continue> |
                                                            ; addr 0 <jmp run_number)
@@ -206,14 +207,7 @@ section .data
             dq cfa_lit
             dq qstr             ; ( -- &qstr )
             dq cfa_ctype        ; ( &qstr -- <print " ?\n"> )
-            dq cfa_lit          ; ( -- 0 )
-            dq 0
-            ; dq cfa_lit          ; ( 0 -- 0 &state )
-            dq cfa_state        ; ( 0 -- 0 &state )
-            dq cfa_store        ; ( 0 &state -- <state set to interpreting> )
-            dq cfa_sp0          ; ( -- &data_stack )
-            dq cfa_sp_store     ; ( &data_stack -- <data stack pointer set to base> )
-            dq cfa_exit         ; ( -- <return to outer> )
+            dq cfa_abort        ; ( -- <return to outer> )
         .drop_exit:
             dq cfa_drop         ; ( addr -- <fall through> )
         .exit:

@@ -59,8 +59,12 @@ d" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-all
 ;
 
 : ?mem-fail-abort
+    hstr-ptr @ 0 =
     if
-        hstr-mem-alloc-fail type reset-str abort
+        hstr-mem-alloc-fail
+        type
+        reset-str
+        abort
     then
 ;
 
@@ -71,12 +75,11 @@ d" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-all
         hstr-buff-sz @ 1 <<
         realloc
         hstr-ptr !
-        hstr-ptr @ 0 =
         ?mem-fail-abort
         update-str
     then
 
-    hstr-start-ptr @ hstr-index @ + c!   \ update the write location
+    hstr-start-ptr @ hstr-index @ + c!   \ write character to the current location
     1 hstr-index +!                      \ move to first unwritten character
 ;
 

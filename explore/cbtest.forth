@@ -13,7 +13,7 @@ wndproc q|4i @ bind cbtest
 q|4i var-free
 
 \ run the test with a marker on the stack. ( 500 1 2 3 5 -- 500 10 )
-500 1 2 3 4 cbtest .s drop drop
+500 1 2 3 4 cbtest drop drop \ .s drop drop
 
 var count-recurse 4 count-recurse !
 
@@ -29,5 +29,5 @@ var count-recurse 4 count-recurse !
 
 ' 4add-recurse cbtramp !
 
-600 1 2 3 4 cbtest .s drop drop
+600 1 2 3 4 cbtest drop drop \ .s drop drop
 

@@ -7,3 +7,4 @@ include C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug\explore\dll.fo
 include C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug\explore\mba.forth
 include C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug\explore\cbtest.forth
 include C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug\explore\windows.forth
+include C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug\explore\forthpad.forth

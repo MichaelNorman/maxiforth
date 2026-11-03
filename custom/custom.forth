@@ -7,3 +7,4 @@ include @MAXIFORTH_ROOT@\explore\dll.forth
 include @MAXIFORTH_ROOT@\explore\mba.forth
 include @MAXIFORTH_ROOT@\explore\cbtest.forth
 include @MAXIFORTH_ROOT@\explore\windows.forth
+include @MAXIFORTH_ROOT@\explore\forthpad.forth
