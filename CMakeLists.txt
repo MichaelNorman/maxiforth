@@ -35,42 +35,16 @@ file(WRITE ${CMAKE_BINARY_DIR}/dummy.c "\n")
 # Add executable from object file
 add_executable(maxiForth ${OBJ_FILE} ${CMAKE_BINARY_DIR}/dummy.c) # ${CMAKE_SOURCE_DIR}/shim.c)
 
-# Copy *.forth files with @<variable>@ substitution.
-configure_file(
-        ${CMAKE_SOURCE_DIR}/init.forth
-        ${CMAKE_BINARY_DIR}/init.forth
-        @ONLY
-)
+add_custom_target(forth_files ALL
+        COMMAND ${CMAKE_COMMAND}
+        -DSRC=${CMAKE_SOURCE_DIR}
+        -DBIN=${CMAKE_BINARY_DIR}
+        -DMAXIFORTH_ROOT=${MAXIFORTH_ROOT}
+        -P ${CMAKE_SOURCE_DIR}/configure_forth.cmake
+        COMMENT "Copying .forth files")
 
-configure_file(
-        ${CMAKE_SOURCE_DIR}/custom/custom.forth
-        ${CMAKE_BINARY_DIR}/custom/custom.forth
-        @ONLY
-)
+add_dependencies(maxiForth forth_files)
 
-configure_file(
-        ${CMAKE_SOURCE_DIR}/custom/heap-strings.forth
-        ${CMAKE_BINARY_DIR}/custom/heap-strings.forth
-        @ONLY
-)
-
-#configure_file(
-#        ${CMAKE_SOURCE_DIR}/explore/dll.forth
-#        ${CMAKE_BINARY_DIR}/explore/dll.forth
-#        @ONLY
-#)
-file(GLOB_RECURSE EXPLORE_FILES
-        RELATIVE ${CMAKE_SOURCE_DIR}
-        CONFIGURE_DEPENDS
-        ${CMAKE_SOURCE_DIR}/explore/*)
-
-foreach(f IN LISTS EXPLORE_FILES)
-    configure_file(
-            ${CMAKE_SOURCE_DIR}/${f}
-            ${CMAKE_BINARY_DIR}/${f}
-            @ONLY
-    )
-endforeach()
 
 # needed for linking
 target_link_libraries(maxiForth PRIVATE kernel32)

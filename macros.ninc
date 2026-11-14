@@ -121,7 +121,7 @@
     mov rbp, [rel main_rbp]
     _NEXT
     .callback_restore:
-    int3
+    int3 ; TODO: Implement proper error handling for Windows or break abort out into a Forth word.
 %endmacro
 
 %macro call_c 2
@@ -144,6 +144,15 @@
 %macro regular_entry 3 ; prev word label
     masked_dict_entry %1, %2, %3, 0
 %endmacro
+
+; %macro variable_entry 3 ; prev varname label
+;     ; dovar plus two 0 placeholders
+; %endmacro
+;
+; %macro constant_entry 4 ; prev constname label value
+;     ; docol @ , 0 , XT(rt_lit) value XT(exit)
+; %endmacro
+
 
 %macro var_of 6 ; base, tos, width, items, stack_size, error
     push r8

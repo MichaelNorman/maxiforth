@@ -125,12 +125,22 @@ immediate
 : [ 0 state ! ; immediate
 : ] 1 state ! ; immediate
 
-create 'lit ' lit , \ put lit into the dictionary
-: literal 'lit @ , , ; immediate  \ bakes in [xt_lit][tos]
-: ['] ' 'lit @ , , ; immediate \ bake a word literal in: [xt_lit][xt_ticked_word]
+\ put lit into the dictionary [ prev*(8) ][ mask(0.3) ][ length(0.5) ][ &dovar(8) ][ 0(8) ][ XT(lit) ]
+create 'lit
+' lit ,
+
+\ bake in [xt_lit][tos]
+: literal 'lit @ , , ; immediate
+
+\ bake in next input word at definition time of compiled word: [xt_lit][xt_parsed]
+: [']
+    'lit @ ,  \ comma in the code address of 'lit
+    ' ,       \ comma in xt of next word from input
+; immediate
 
 \ if/else/then
 : if ['] 0branch , here 0 , ; immediate
+\ equivalent to: `: if [ ' 0branch ] literal , here 0 , ; immediate`
 
 : -rot rot rot ;
 
@@ -146,6 +156,12 @@ create 'lit ' lit , \ put lit into the dictionary
 : then \ H_hole_else is on the stack
     dup here swap - swap !
 ; immediate
+
+\ variables and constants
+: (does>)  latest @ 40 + dup ['] dodoes @ swap ! 8 + r> swap ! ;
+: does> ['] (does>) , ; immediate
+: var create 0 , ;
+: const create , does> @ ;
 
 \ begin/until/while/repeat
 
@@ -165,12 +181,80 @@ create 'lit ' lit , \ put lit into the dictionary
     here over - swap !
 ; immediate
 
+\ switch/case/break/end-switch
+var break-chain
+var fall-chain
+
+\ Writes offset to here into hole_addr
+: resolve \ ( hole_addr -- )
+    here  \ ( hole_addr -- hole_addr here )
+    over  \ ( hole_addr here -- hole_addr here hole_addr )
+    -     \ ( hole_addr here hole_addr -- hole_addr offset )
+    swap  \ ( hole_addr offset -- offset hole_addr )
+    !     \ ( offset hole_addr -- <offset written to hole> )
+;
+
+: resolve-chain \ ( head -- )
+    begin
+        dup     \ ( head -- head head )
+    while
+        dup @   \ ( head -- head previous )
+        swap    \ ( head previous -- previous head )
+        resolve \ ( previous head -- previous < offset written into hole> )
+    repeat
+    drop        \ ( previous{0} -- <exited cleanly> )
+;
+
+\ Writes previous thread node into dictionary. Stores current location in brkorfll
+: thread \ ( brkorfll -- )
+    here        \ ( brkorfll -- brkorfll here )
+    over        \ ( brkorfll here -- brkorfll here brkorfll )
+    @           \ ( brkorfll here brkorfll -- brkorfll here [previous brkorfll] )
+    ,           \ ( brkorfll here [previous brkorfll] -- brkorfll here < previous brkorfll put into dictionary> )
+    swap        \ ( brkorfll here -- here brkorfll )
+    !           \ ( here brkorfll -- <here stored in brkorfll> )
+;
+
+: switch \ ( -- old-break old-fall )
+    break-chain @ fall-chain @       \ ( -- break fall )
+    0 break-chain !  0 fall-chain !  \ ( break fall -- <break-chain and fall-chain zeroed> )
+; immediate
+
+: case \ ( -- fail-hole )
+    ['] over ,      \ compile xt(over)   into the word definition in which `case` appears
+    ['] = ,         \ compile xt(=)       "    "   ...
+    ['] 0branch ,   \ compile xt(0branch) " ...
+    here            \ record here
+    0 ,             \ compile hole (at the `here` location just recorded)
+    ['] drop ,      \ compile xt(drop)  into the word def....
+    fall-chain @    \ store hole location in fall-chain
+    resolve-chain   \ resolve the fall chain
+    0 fall-chain !  \ zero out fall-chain
+; immediate
+
+: break \ ( fail-hole -- )
+    ['] branch ,        \ Compile xt(branch) into the word definition in which `break` appears.
+                        \ This is what gets assigned to the current break-chain variable inside thread.
+    break-chain thread  \ thread this entry into the break chain
+    resolve             \ write offset to here into fail-hole
+; immediate
+
+: fall \ ( fail-hole -- )
+    ['] branch ,        \ Compile xt(branch) into the word definition in which `fall` appears.
+    fall-chain thread   \ This is what gets assigned to the current fall-chain variable inside thread.
+    resolve             \ thread this entry into the fall chain
+; immediate             \ write offset to here into fail-hole
+
+
+: end-switch \ ( old-break old-fall -- )
+    ['] drop ,                      \ drop the test value from the stack
+    break-chain @ resolve-chain     \ resolve the last break chain
+    fall-chain @ resolve-chain      \ resolve the last fall chain
+    fall-chain !  break-chain !     \ left on the stack by `switch` for nesting
+; immediate
+
 \ strings
 
-: (does>)  latest @ 40 + dup ['] dodoes @ swap ! 8 + r> swap ! ;
-: does> ['] (does>) , ; immediate
-: var create 0 , ;
-: const create , does> @ ;
 : allot here + dp ! ;
 
 : cell 8 ;
@@ -194,7 +278,8 @@ create 'lit ' lit , \ put lit into the dictionary
     while \ skip empty lines from input
         refill
         drop
-    repeat ;
+    repeat
+;
 
 : next-rchar
     valid-refill \ Either we were okay to start with or we are at the start of a new buffer
@@ -454,7 +539,28 @@ create words-buffer 40 allot
     then
     49 emit 54 emit
 ;
+
+\ switch test. Comment out if you want.
+d" \nOne!" const one-str
+d" \nTwo or three!" const two-three-str
+d" \nThree is the biggest number." const argue-str
+: announce
+    switch
+        1 case
+            one-str type
+            break
+        2 case
+            fall
+        3 case
+            two-three-str type
+          \ ^ fall goes here
+            break
+        argue-str type
+    end-switch
+    \ all breaks go here
+;
+
 \ This is the hook into additional user-specified bootup code.
-include @MAXIFORTH_ROOT@\custom\custom.forth
+include C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug\custom\custom.forth
 
 

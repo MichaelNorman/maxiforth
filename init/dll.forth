@@ -1,3 +1,8 @@
+
+
+
+d" We ran dll.forth! JetBrains sucks!" 10 emit type 10 emit
+
 \ Runtime DLL loading
 
 \ The arg1-arg4 primitives read their input from r10b.
@@ -69,6 +74,7 @@ var x
 : min dup rot dup rot - 0 < if swap drop else drop then ;
 
 : make-offset dup 2 mod + 3 << 32 max ;
+
 
 var offset
 var stackargs
@@ -146,4 +152,3 @@ var regargs
     0 stackargs !
     0 offset !
 ;
-

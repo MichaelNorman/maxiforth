@@ -18,7 +18,7 @@
 #############################################
 # Minimal version of Ninja required by this file
 
-ninja_required_version = 1.8
+ninja_required_version = 1.5
 
 
 #############################################
@@ -47,7 +47,7 @@ cmake_ninja_workdir = C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug
 #############################################
 # Order-only phony target for maxiForth
 
-build cmake_object_order_depends_target_maxiForth: phony || maxiForth.obj
+build cmake_object_order_depends_target_maxiForth: phony || forth_files maxiForth.obj
 
 build CMakeFiles/maxiForth.dir/dummy.c.obj: C_COMPILER__maxiForth_unscanned_Debug C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/dummy.c || cmake_object_order_depends_target_maxiForth
   CONFIG = Debug
@@ -65,7 +65,7 @@ build CMakeFiles/maxiForth.dir/dummy.c.obj: C_COMPILER__maxiForth_unscanned_Debu
 #############################################
 # Link the executable maxiForth.exe
 
-build maxiForth.exe: C_EXECUTABLE_LINKER__maxiForth_Debug maxiForth.obj CMakeFiles/maxiForth.dir/dummy.c.obj
+build maxiForth.exe: C_EXECUTABLE_LINKER__maxiForth_Debug maxiForth.obj CMakeFiles/maxiForth.dir/dummy.c.obj || forth_files
   CONFIG = Debug
   FLAGS = -g
   LINK_LIBRARIES = -lkernel32  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
@@ -76,6 +76,12 @@ build maxiForth.exe: C_EXECUTABLE_LINKER__maxiForth_Debug maxiForth.obj CMakeFil
   TARGET_IMPLIB = libmaxiForth.dll.a
   TARGET_PDB = maxiForth.exe.dbg
   TARGET_SUPPORT_DIR = CMakeFiles\maxiForth.dir
+
+
+#############################################
+# Utility command for forth_files
+
+build forth_files: phony CMakeFiles/forth_files
 
 
 #############################################
@@ -104,10 +110,18 @@ build rebuild_cache: phony CMakeFiles/rebuild_cache.util
 #############################################
 # Custom command for maxiForth.obj
 
-build maxiForth.obj | ${cmake_ninja_workdir}maxiForth.obj: CUSTOM_COMMAND C$:/Users/mknor/CLionProjects/core_forth/maxiForth.asm
+build maxiForth.obj | ${cmake_ninja_workdir}maxiForth.obj: CUSTOM_COMMAND C$:/Users/mknor/CLionProjects/core_forth/maxiForth.asm || forth_files
   COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\mknor\CLionProjects\core_forth\cmake-build-debug && nasm -I C:/Users/mknor/CLionProjects/core_forth -f win64 C:/Users/mknor/CLionProjects/core_forth/maxiForth.asm -o C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/maxiForth.obj"
   DESC = Assembling C:/Users/mknor/CLionProjects/core_forth/maxiForth.asm
   restat = 1
+
+
+#############################################
+# Custom command for CMakeFiles\forth_files
+
+build CMakeFiles/forth_files | ${cmake_ninja_workdir}CMakeFiles/forth_files: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\mknor\CLionProjects\core_forth\cmake-build-debug && C:\Users\mknor\AppData\Local\Programs\CLion\bin\cmake\win\x64\bin\cmake.exe -DSRC=C:/Users/mknor/CLionProjects/core_forth -DBIN=C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug -DMAXIFORTH_ROOT=C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug -P C:/Users/mknor/CLionProjects/core_forth/configure_forth.cmake"
+  DESC = Copying .forth files
 
 # =============================================================================
 # Target aliases.
@@ -122,37 +136,23 @@ build maxiForth: phony maxiForth.exe
 #############################################
 # Folder: C:/Users/mknor/CLionProjects/core_forth/cmake-build-debug
 
-build all: phony maxiForth.exe
+build all: phony maxiForth.exe forth_files
 
 # =============================================================================
 # Built-in targets
 
 
 #############################################
-# Phony target to force glob verification run.
-
-build C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/VerifyGlobs.cmake_force: phony
-
-
-#############################################
-# Re-run CMake to check if globbed directories changed.
-
-build C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/cmake.verify_globs: VERIFY_GLOBS | C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/VerifyGlobs.cmake_force
-  pool = console
-  restat = 1
-
-
-#############################################
 # Re-run CMake if any of its inputs changed.
 
-build build.ninja C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/cmake_install.cmake: RERUN_CMAKE C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/cmake.verify_globs | C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/VerifyGlobs.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeCInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeCommonLanguageInclude.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeGenericSystem.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeInitializeConfigs.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeLanguageInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeRCInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeSystemSpecificInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeSystemSpecificInitialize.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Internal/CMakeCLinkerInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Internal/CMakeCommonLinkerInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-Initialize.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-windres.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/WindowsPaths.cmake C$:/Users/mknor/CLionProjects/core_forth/CMakeLists.txt C$:/Users/mknor/CLionProjects/core_forth/custom/custom.forth C$:/Users/mknor/CLionProjects/core_forth/custom/heap-strings.forth C$:/Users/mknor/CLionProjects/core_forth/explore/cbtest.forth C$:/Users/mknor/CLionProjects/core_forth/explore/dll.forth C$:/Users/mknor/CLionProjects/core_forth/explore/forthpad.forth C$:/Users/mknor/CLionProjects/core_forth/explore/mba.forth C$:/Users/mknor/CLionProjects/core_forth/explore/windows.forth C$:/Users/mknor/CLionProjects/core_forth/init.forth CMakeCache.txt CMakeFiles/4.3.1/CMakeCCompiler.cmake CMakeFiles/4.3.1/CMakeRCCompiler.cmake CMakeFiles/4.3.1/CMakeSystem.cmake
+build build.ninja C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/cmake_install.cmake: RERUN_CMAKE | C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeCInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeCommonLanguageInclude.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeGenericSystem.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeInitializeConfigs.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeLanguageInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeRCInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeSystemSpecificInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeSystemSpecificInitialize.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Internal/CMakeCLinkerInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Internal/CMakeCommonLinkerInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Linker/GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Linker/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-Initialize.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-windres.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/WindowsPaths.cmake C$:/Users/mknor/CLionProjects/core_forth/CMakeLists.txt CMakeCache.txt CMakeFiles/4.3.1/CMakeCCompiler.cmake CMakeFiles/4.3.1/CMakeRCCompiler.cmake CMakeFiles/4.3.1/CMakeSystem.cmake
   pool = console
 
 
 #############################################
 # A missing CMake input file is not an error.
 
-build C$:/Users/mknor/CLionProjects/core_forth/cmake-build-debug/CMakeFiles/VerifyGlobs.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeCInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeCommonLanguageInclude.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeGenericSystem.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeInitializeConfigs.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeLanguageInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeRCInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeSystemSpecificInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeSystemSpecificInitialize.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Internal/CMakeCLinkerInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Internal/CMakeCommonLinkerInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-Initialize.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-windres.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/WindowsPaths.cmake C$:/Users/mknor/CLionProjects/core_forth/CMakeLists.txt C$:/Users/mknor/CLionProjects/core_forth/custom/custom.forth C$:/Users/mknor/CLionProjects/core_forth/custom/heap-strings.forth C$:/Users/mknor/CLionProjects/core_forth/explore/cbtest.forth C$:/Users/mknor/CLionProjects/core_forth/explore/dll.forth C$:/Users/mknor/CLionProjects/core_forth/explore/forthpad.forth C$:/Users/mknor/CLionProjects/core_forth/explore/mba.forth C$:/Users/mknor/CLionProjects/core_forth/explore/windows.forth C$:/Users/mknor/CLionProjects/core_forth/init.forth CMakeCache.txt CMakeFiles/4.3.1/CMakeCCompiler.cmake CMakeFiles/4.3.1/CMakeRCCompiler.cmake CMakeFiles/4.3.1/CMakeSystem.cmake: phony
+build C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeCInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeCommonLanguageInclude.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeGenericSystem.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeInitializeConfigs.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeLanguageInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeRCInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeSystemSpecificInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/CMakeSystemSpecificInitialize.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Compiler/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Internal/CMakeCLinkerInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Internal/CMakeCommonLinkerInformation.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Linker/GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Linker/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Linker/Windows-GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU-C.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-GNU.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-Initialize.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows-windres.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/Windows.cmake C$:/Users/mknor/AppData/Local/Programs/CLion/bin/cmake/win/x64/share/cmake-4.3/Modules/Platform/WindowsPaths.cmake C$:/Users/mknor/CLionProjects/core_forth/CMakeLists.txt CMakeCache.txt CMakeFiles/4.3.1/CMakeCCompiler.cmake CMakeFiles/4.3.1/CMakeRCCompiler.cmake CMakeFiles/4.3.1/CMakeSystem.cmake: phony
 
 
 #############################################

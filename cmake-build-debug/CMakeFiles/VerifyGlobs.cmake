@@ -5,7 +5,6 @@
 file(GLOB_RECURSE NEW_GLOB LIST_DIRECTORIES false RELATIVE "C:/Users/mknor/CLionProjects/core_forth" "C:/Users/mknor/CLionProjects/core_forth/explore/*")
 set(OLD_GLOB
   "explore/cbtest.forth"
-  "explore/dll.forth"
   "explore/forthpad.forth"
   "explore/mba.forth"
   "explore/windows.forth"

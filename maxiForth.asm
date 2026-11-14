@@ -14,7 +14,7 @@ section .data
     error_return_underflow_msg     db "Return stack underflow.", 10, 0
     error_data_underflow_msg       db "Data stack underflow.", 10, 0
     error_data_overflow_msg        db "Data stack overflow.", 10, 0
-    error_bad_numeric_lieral_msg   db "No word found, and invalid literal for any base.", 10, 0
+    error_bad_numeric_literal_msg  db "No word found, and invalid literal for any base.", 10, 0
     error_bad_base_msg             db "Bad base. This error should not occur.", 10, 0
     error_input_buffer_overrun_msg db "Last character of input buffer was not white space.", 10, 0
     error_ib_overrun_hard_msg      db "Hard overrun of input buffer. Interpreter corrupted. Exit and restart.", 10, 0
@@ -25,9 +25,10 @@ section .data
     error_init_file_no_exist_msg   db "Could not open init.forth.", 10, 0
     error_fp_stack_overflow_msg    db "File pointer stack overflow: Too many nested includes.", 10, 0
     error_fp_stack_underflow_msg   db "File pointer stack underflow: Too many pops.", 10, 0
+    error_malloc_during_init_msg   db "Could not free memory of temporary init path string.", 10, 0
     qstr                           db " ?", 10, 0
     okstr                          db " ok", 10, 0
-    init_forth_str                 db "init.forth", 0
+    init_forth_str                 db "init\init.forth", 0
     file_read_str                  db "rb", 0
     message                        db 10, "It worked!", 10, 0
     splash:                        db "Welcome to maxiForth", 10
@@ -320,8 +321,8 @@ section .data
     regular_entry _bindrargs, "rsp", _rsp
     regular_entry _rsp, "bindret", _bindret
     regular_entry _bindret, "do_call", _do_call
-    regular_entry _do_call, "wndproc", _wndproc
-    regular_entry _wndproc, "cbtramp", _cb_thread
+    regular_entry _do_call, "tt-addr", _test_thunk_addr
+    regular_entry _test_thunk_addr, "cbtramp", _cb_thread
     regular_entry _cb_thread, "wbuf", push_wbuf
     initial_latest:
     regular_entry push_wbuf, "accept", _accept
@@ -446,7 +447,6 @@ main:
     .init_file_no_exist:
     call _errno
     mov eax, [rax]
-    int3
     call error_init_file_no_exist
 
 
@@ -454,41 +454,103 @@ get_init:
     push rbp
     mov rbp, rsp
     sub rsp, 32
-    ; get name of the exe
+    ; Get the path to the running executable as as null-terminated string.
     lea rcx, [rel qw_scratch]
-    call _get_pgmptr
-    test rax, rax
+    call _get_pgmptr ; qw_scratch contains the address of the string that contains the executable name.
+    test rax, rax    ; rax is the return code.
     jnz .fail_filename
-    ; check the size of the returned path, and bail on 511 or larger
-    mov r10, rax
+
+    ; make a local copy
     mov rcx, [rel qw_scratch]
     call strlen
-    cmp rax, PAD_SIZE - 1 ; this checks not just for fit inside pad, but fit
-    jae .long_filename
-
-    ; copy name of exe into pad
+    mov rcx, rax
+    inc rcx
+    call malloc
+    test rax, rax
+    jz .malloc_error
+    mov rdi, rax ; store the pointer
+    mov rcx, rax
     mov rdx, [rel qw_scratch]
-    lea rcx, [rel pad]
+    call strcpy ; copy the string to the new memory
+    mov qword [rel qw_scratch], rdi
 
-    call strcpy
-    ; find the last `\\`
-    lea rcx, [rel pad]
+    ; Find the last `\`
+
+    mov rcx, [rel qw_scratch]
     mov rdx, '\'
     call strrchr
     test rax, rax
     jz .bad_filename
-    ; ensure we can fit `init.forth\0` into pad
+
+
+
+    ; trim the string with a trailing null after the `\` of interest
+    inc rax
+    mov byte [rax], 0
+
+    ; get the length of the resulting string
+    mov rcx, [rel qw_scratch]
+    call strlen
+    mov rbx, rax
+    ; get the length of init_forth_str
+    lea rcx, [rel init_forth_str]
+    call strlen
+    ; add them
+    add rbx, rax
+    ; if > 511, bail
+    cmp rbx, 511
+    ja .long_filename
+    ; otherwise, strcpy init_forth_str after the last `\`
+    ; first get the root into pad
+    lea rcx, [rel pad]
+    mov rdx, [rel qw_scratch]
+    call strcpy
+
+    lea rcx, [rel pad]
+    mov rdx, '\'
+    call strrchr
+
     mov rcx, rax
-    lea r9, [rel pad]
-    add r9, PAD_SIZE - 12 ;    |...<location>|\init.forth0|
-                          ; PAD|        <loc>|    PAD_SIZE|
-    cmp rcx, r9
-    jae .long_filename
-    ; copy our file name at that position
-    inc rcx ; we write starting one past the `\`
+    inc rcx
     lea rdx, [rel init_forth_str]
-    mov r8, 11
-    call memcpy
+    call strcpy
+
+    lea rcx, [rel pad]
+
+    mov rcx, [rel qw_scratch]
+    call free
+
+;    ; fall into the opening code
+;    ; check the size of the returned path, and bail on 511 or larger
+;    ; mov r10, rax
+;    ; mov rcx, [rel qw_scratch]
+;    ; call strlen
+;    ; cmp rax, PAD_SIZE - 1 ; this checks not just for fit inside pad, but fit
+;    ; jae .long_filename
+;    ;
+;    ; ; copy name of exe into pad
+;    ; mov rdx, [rel qw_scratch]
+;    ; lea rcx, [rel pad]
+;    ;
+;    ; call strcpy
+;    ; ; find the last `\\`
+;    ; lea rcx, [rel pad]
+;    ; mov rdx, '\'
+;    ; call strrchr
+;    ; test rax, rax
+;    ; jz .bad_filename
+;    ; ; ensure we can fit `init_forth_str` into pad
+;    ; mov rcx, rax
+;    ; lea r9, [rel pad]
+;    ; add r9, PAD_SIZE - 12 ;    |...<location>|\init.forth0|
+;    ;                       ; PAD|        <loc>|    PAD_SIZE|
+;    ; cmp rcx, r9
+;    ; jae .long_filename
+;    ; ; copy our file name at that position
+;    ; inc rcx ; we write starting one past the `\`
+;    ; lea rdx, [rel init_forth_str]
+;    ; mov r8, 11
+;    ; call memcpy ; TODO; change to strcpy
     lea rax, [rel pad]
     .ret:
     add rsp, 32
@@ -497,12 +559,14 @@ get_init:
     ret
     .fail_filename:
         call error_init_fail_filename
-        jmp .ret
+        ; jmp .ret
     .bad_filename:
-        call error_init_bad_filename
-        jmp .ret
+       call error_init_bad_filename
+       ; jmp .ret
     .long_filename:
         call error_init_long_filename
+    .malloc_error:
+        call error_malloc_during_init
 
 ; presumes that the address of the word buffer has been loaded into r8
 _find:
@@ -758,7 +822,7 @@ callable_error error_return_overflow, error_return_overflow_msg
 callable_error error_return_underflow, error_return_underflow_msg
 callable_error error_data_underflow, error_data_underflow_msg
 callable_error error_data_overflow, error_data_overflow_msg
-callable_error error_bad_numeric_lieral, error_bad_numeric_lieral_msg
+callable_error error_bad_numeric_literal, error_bad_numeric_literal_msg
 callable_error error_bad_base, error_bad_base_msg
 callable_error error_input_buffer_overrun, error_input_buffer_overrun_msg
 callable_error error_ib_overrun_hard, error_ib_overrun_hard_msg
@@ -769,3 +833,4 @@ callable_error error_init_long_filename, error_init_long_filename_msg
 callable_error error_init_file_no_exist, error_init_file_no_exist_msg
 callable_error error_fp_stack_overflow, error_fp_stack_overflow_msg
 callable_error error_fp_stack_underflow, error_fp_stack_underflow_msg
+callable_error error_malloc_during_init, error_malloc_during_init_msg

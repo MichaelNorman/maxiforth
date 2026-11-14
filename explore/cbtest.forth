@@ -3,11 +3,16 @@ var q|4i
 h" q|iiii" q|4i !
 
 \ put test function into trampoline
-: 4add + + + ;
+: 4add + + + ; \ needs rewrite for new argument passing scheme
+: 4add
+    \ get 4 integers from the machine stack onto the data stack
+    \ add them
+    + + +
+;
 ' 4add cbtramp !
 
 \ bind the callback directly
-wndproc q|4i @ bind cbtest
+test-thunk q|4i @ bind cbtest
 
 \ clean up memory (sorta)
 q|4i var-free

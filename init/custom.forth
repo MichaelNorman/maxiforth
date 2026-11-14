@@ -2,9 +2,16 @@
 \ beyond the base language. It's just a Forth file. You can implement your customizations directly
 \ in this file, `include` them, or both.
 
-include @MAXIFORTH_ROOT@\custom\heap-strings.forth
-include @MAXIFORTH_ROOT@\explore\dll.forth
+include @MAXIFORTH_ROOT@\init\heap-strings.forth
+
+include @MAXIFORTH_ROOT@\init\dll.forth
+
 include @MAXIFORTH_ROOT@\explore\mba.forth
-include @MAXIFORTH_ROOT@\explore\cbtest.forth
+
+d" We're running the new custom.forth!" 10 emit type
+
+\ include @MAXIFORTH_ROOT@\explore\cbtest.forth
+
 include @MAXIFORTH_ROOT@\explore\windows.forth
-include @MAXIFORTH_ROOT@\explore\forthpad.forth
+
+\ include @MAXIFORTH_ROOT@\explore\forthpad.forth

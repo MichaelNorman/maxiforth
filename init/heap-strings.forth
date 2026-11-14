@@ -128,3 +128,5 @@ d" \nMemory allocation failure in heap string. Aborting...\n" const hstr-mem-all
     while
     repeat
 ;
+
+d" We ran the new heap-strings.forth!" 10 emit type

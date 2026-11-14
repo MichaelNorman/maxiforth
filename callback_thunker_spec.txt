@@ -1,0 +1,59 @@
+# maxiForth Windows callback handling
+
+## Callback handling flow
+
+1.  I register a window with callback, conventionally WndProc, but I pass a thunk.
+2.  I create the window and launch it. This is a C call under the hood.
+3.  Windows calls my callback (thunk).
+4.  The thunk handles some state (rsp + 8 and the location of a trampoline specific to the handler), then calls the common handler.
+5.  The common handler stashes rcx-r9, irrespective of whether they contain values.
+6.  The common handler stashes the callee-saved registers.
+7.  The common handler restores the runtime state. (DATA_TOS_REG and RETURN_TOS_REG)
+8.  The common handler sets in_callback to true (possibly with return address instead of -1).
+9.  The common handler loads the trampoline address/XT into IP_REG and does _NEXT, starting Forth.
+10. The Forth word runs, processing the message from Windows, possibly calling and re-entering.
+11. The Forth word exits, and the Forth runtime proceeds to the next cell of the trampoline, which points to the common callback return handler.
+12. The common callback return handler restores the caller-saved registers, pushes rax onto the stack (unconditionally), and returns.
+
+## The data structures and code
+
+### The trampoline
+
+The trampoline is a two-cell pseudo-body that contains XTs for the maxiForth handler word and the callback return handler.
+        [XT(specialized handler)] [XT(return handler)]
+
+### The thunk
+
+The thunk is a tiny routine specific to each handler that moves rsp into rax and moves the address of the trampoline into r10. It then jumps to the common handler.
+
+### The common handler
+
+The common callback handler:
+    - Pushes the callee-saved registers onto the machine stack
+    - Uses rax to calculate the base address of the argument list
+    - Pushes the base address of the argument list onto the machine stack
+    - Restores the interpreter state
+    - Loads the address of the trampoline from r10 into IP_REG
+    - Does _NEXT
+
+### The Forth handler word
+
+The Forth handler word contains the logic that will be run in response to the callback. It likely has a Forth `switch` statement to handle the various messages. It can call other Forth words to do its work. It's XT must be written into the first cell of the trampoline specific to this handler.
+
+## Aside: Blessing memory as executable and patching machine instructions
+
+Windows can choose to make memory writable, executable, or both. (It's an open question what will get past Defender.) This allows us to treat code as data. This means that at least the thunks can be created at run time and blessed as executable. I think VirtualAlloc pages are made available 64kb at a time. This is more than enough for all the thunks we'll likely need.
+
+This raises the question of how to customize these thunks. The solution is to treat the instructions as data structures and to write the address for the trampoline that contains the Forth handler directly into the trampoline machine code from a word defined in `windows.forth`. We can place this patched thunk into the dynamic thunk bump arena at runtime if we use the correct protections from Windows.
+
+The common handler and common return can also be reduced to machine code constants with careful layout of the data that is passed to them. Each thunk could then fill the structure, put its address into a spare register or registers, and simply jump to the constant common handler(s).
+
+## Next steps
+
+- Work out how to save the thunk template and common handler bodies for deployment to the dynamic thunk bump arena.
+- Turn `throw` and callback tracking into general problems arising from FFI, rather than arising specifically from Windows. Throw will jump through a pointer stored in the current frame in a standard location.
+- Identify the patch offsets for the values that need to be written into the thunks and the common handlers.
+- Create a clearer file structure line between core libraries and extensions. (`../init` folder, move init.forth and dll.forth into it.)
+
+
+
