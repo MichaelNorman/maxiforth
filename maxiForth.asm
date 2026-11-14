@@ -25,7 +25,7 @@ section .data
     error_init_file_no_exist_msg   db "Could not open init.forth.", 10, 0
     error_fp_stack_overflow_msg    db "File pointer stack overflow: Too many nested includes.", 10, 0
     error_fp_stack_underflow_msg   db "File pointer stack underflow: Too many pops.", 10, 0
-    error_malloc_during_init_msg   db "Could not free memory of temporary init path string.", 10, 0
+    error_malloc_during_init_msg   db "Could not malloc memory for temporary init path string.", 10, 0
     qstr                           db " ?", 10, 0
     okstr                          db " ok", 10, 0
     init_forth_str                 db "init\init.forth", 0
@@ -482,8 +482,6 @@ get_init:
     test rax, rax
     jz .bad_filename
 
-
-
     ; trim the string with a trailing null after the `\` of interest
     inc rax
     mov byte [rax], 0
@@ -517,40 +515,10 @@ get_init:
 
     lea rcx, [rel pad]
 
+    ; release our temp string
     mov rcx, [rel qw_scratch]
     call free
 
-;    ; fall into the opening code
-;    ; check the size of the returned path, and bail on 511 or larger
-;    ; mov r10, rax
-;    ; mov rcx, [rel qw_scratch]
-;    ; call strlen
-;    ; cmp rax, PAD_SIZE - 1 ; this checks not just for fit inside pad, but fit
-;    ; jae .long_filename
-;    ;
-;    ; ; copy name of exe into pad
-;    ; mov rdx, [rel qw_scratch]
-;    ; lea rcx, [rel pad]
-;    ;
-;    ; call strcpy
-;    ; ; find the last `\\`
-;    ; lea rcx, [rel pad]
-;    ; mov rdx, '\'
-;    ; call strrchr
-;    ; test rax, rax
-;    ; jz .bad_filename
-;    ; ; ensure we can fit `init_forth_str` into pad
-;    ; mov rcx, rax
-;    ; lea r9, [rel pad]
-;    ; add r9, PAD_SIZE - 12 ;    |...<location>|\init.forth0|
-;    ;                       ; PAD|        <loc>|    PAD_SIZE|
-;    ; cmp rcx, r9
-;    ; jae .long_filename
-;    ; ; copy our file name at that position
-;    ; inc rcx ; we write starting one past the `\`
-;    ; lea rdx, [rel init_forth_str]
-;    ; mov r8, 11
-;    ; call memcpy ; TODO; change to strcpy
     lea rax, [rel pad]
     .ret:
     add rsp, 32

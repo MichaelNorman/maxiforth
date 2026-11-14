@@ -50,10 +50,11 @@ The common handler and common return can also be reduced to machine code constan
 
 ## Next steps
 
+
+- DONE: ~Create a clearer file structure line between core libraries and extensions. (`../init` folder, move init.forth and dll.forth into it.)~
 - Work out how to save the thunk template and common handler bodies for deployment to the dynamic thunk bump arena.
 - Turn `throw` and callback tracking into general problems arising from FFI, rather than arising specifically from Windows. Throw will jump through a pointer stored in the current frame in a standard location.
 - Identify the patch offsets for the values that need to be written into the thunks and the common handlers.
-- Create a clearer file structure line between core libraries and extensions. (`../init` folder, move init.forth and dll.forth into it.)
 
 
 
