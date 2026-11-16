@@ -231,7 +231,8 @@ section .data
     regular_entry _fwrite, "fputs", _fputs
     regular_entry _fputs, "fseek", _fseek
     regular_entry _fseek, "ftell", _ftell
-    regular_entry _ftell, "feof", _feof
+    regular_entry _ftell, "rewind", _rewind
+    regular_entry _rewind, "feof", _feof
     regular_entry _feof, "ferror", _ferror
     regular_entry _ferror,"clearerr", _clearerr
     regular_entry _clearerr, "refill", _refill
@@ -374,6 +375,7 @@ section .text
     extern fputs
     extern ftell
     extern fseek
+    extern rewind
     extern clearerr
     extern strlen
     extern printf

@@ -947,6 +947,7 @@ _abort:
 
 ; ********************** file I/O ************************** ;
 
+; ( path mode -- file* )
 _fopen:
     ; FILE *
     ; const char * path
@@ -1019,7 +1020,7 @@ _fputs:
 
 ; NOTE: sizes and counts are 32-bit values, so you need to sext32 or uext32 them properly before calling
 _fseek:
-    ds_underflow 4
+    ds_underflow 3
     ; c_reg_stash
     stack_popq r8, DATA_TOS_REG
     stack_popq rdx, DATA_TOS_REG
@@ -1039,6 +1040,11 @@ _ftell:
     ; c_reg_restore
     _NEXT
 
+_rewind:
+    ds_underflow 1
+    stack_popq rcx, DATA_TOS_REG
+    call rewind
+    _NEXT
 ; ( ... fpointer -- eof) pushes 0 to data stack if read past EOF, otherwise pushes nonzero: feof
 _feof:
     ds_underflow 1

@@ -449,3 +449,116 @@ h" EndDialog" const EndDialog                             \ close Go To dialog
 h" SetFocus" const SetFocus                               \ focus edit control after commands
 h" ExitProcess" const ExitProcess                         \ terminate process cleanly
 
+\ ============= proof of concept for "Hello, dynamic world!" ================= \
+
+\ =============================== kernel32.dll =============================== \
+    h" kernel32.dll" fstr !  uselib
+\
+\ LPVOID VirtualAlloc(
+\     LPVOID lpAddress,          // NULL = let the system choose
+\     SIZE_T dwSize,
+\     DWORD  flAllocationType,   // MEM_COMMIT | MEM_RESERVE = 0x3000
+\     DWORD  flProtect           // PAGE_READWRITE = 0x04, PAGE_EXECUTE_READWRITE = 0x40
+\ );
+     h" q|iiii" sigstr ! h" GetModuleHandleA" fstr ! frezbind virtualalloc
+
+\
+\ BOOL VirtualProtect(
+\     LPVOID lpAddress,
+\     SIZE_T dwSize,
+\     DWORD  flNewProtect,       // PAGE_EXECUTE_READ = 0x20
+\     PDWORD lpflOldProtect      // must be non-NULL, points to a writable DWORD
+\ );
+    h" d|iiii" sigstr ! h" GetModuleHandleA" fstr ! frezbind virtualprotect
+
+\ BOOL FlushInstructionCache(
+\     HANDLE  hProcess,          // GetCurrentProcess() = (HANDLE)-1
+\     LPCVOID lpBaseAddress,
+\     SIZE_T  dwSize
+\ );
+    h" d|iii" sigstr ! h" GetModuleHandleA" fstr ! frezbind flushicache
+
+\ BOOL VirtualFree(
+\     LPVOID lpAddress,
+\     SIZE_T dwSize,             // must be 0 with MEM_RELEASE
+\     DWORD  dwFreeType          // MEM_RELEASE = 0x8000
+\ );
+    h" d|iii" sigstr ! h" GetModuleHandleA" fstr ! frezbind virtualfree
+
+\ HANDLE CreateThread(
+\     LPSECURITY_ATTRIBUTES  lpThreadAttributes,  // NULL
+\     SIZE_T                 dwStackSize,         // 0 = default
+\     LPTHREAD_START_ROUTINE lpStartAddress,      // DWORD WINAPI fn(LPVOID)
+\     LPVOID                 lpParameter,
+\     DWORD                  dwCreationFlags,     // 0 = run immediately
+\     LPDWORD                lpThreadId           // may be NULL
+\ );
+
+    h" q|iiii2" sigstr ! h" GetModuleHandleA" fstr ! frezbind createthread \ maxiForth is single-threaded!
+
+\ get-cb-mem ( size -- address)
+\ This will pass the correct protection and allocation type
+\ Getting the memory twice will return the same address (unless you futz with cb-mem)
+var old-protect
+var cb-mem
+: get-cb-mem
+    cb-mem @ 0 =
+    if
+        \  lpAddress,  dwSize, flNewProtect, lpflOldProtect
+        0 1 12 << >hex 4 >dec virtualalloc
+        dup cb-mem !
+    else
+        cb-mem @
+    then
+;
+var cb-loaded 0 cb-loaded !
+
+\ load-test-callback ( -- [true|false] <memory variables stored, callbacks loaded>)
+\ 0. if already loaded, bail (true)
+\ 1. true cb-loaded !
+\ 2. open the binary with fopen
+\ 3. get its length, store it in `len-stubs` and rewind it
+\ 4. virtualalloc 4kb with get-cb-mem (fills cb-mem)
+\ 5. bail if cb-mem is 0 (false)
+\ 6. store `cb-mem` in `vahere`
+\ 7. read `len-stubs` bytes from the binary into `vahere`
+\ 8. patch the address of `printf` into `callback-mem + 0x40`
+\ 8. `vahere @ len-stubs @ + vahere !`
+\ 9. protect the memory
+
+var len-stubs
+var vahere
+var winstubs-bin h" C:\\Users\\mknor\\CLionProjects\\core_forth\\windows\\winstubs.bin" winstubs-bin !
+var mode-read-binary h" rb" mode-read-binary !
+
+\ ( file-handle -- file-handle length )
+: get-file-length
+    dup 0 2 fseek
+    0 <>
+    if
+        -1 exit
+    then
+    dup dup ftell
+    swap rewind
+;
+\ ( -- [true|false] )
+: load-test-callback
+    cb-loaded @
+    if
+        true
+    else
+        true cb-loaded !
+        winstubs-bin @ mode-read-binary @ fopen
+        dup 0 =
+
+        if
+            exit \ false already on stack
+        then
+
+        get-file-length
+        dup -1 =
+        if
+            drop false exit \ WRONG!: remember to close the file
+        then
+
+;
