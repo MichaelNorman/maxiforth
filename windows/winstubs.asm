@@ -1,9 +1,9 @@
 bits 64
 default rel
 section .data
-    hello_dynamic:      db "Hello, dynamic world!", 10, 0
+    hello_dynamic:      db "Hello, Dynamic World!", 10, 0
     align 16
-    print_ptr:          dq 0xDEADBEEF
+    print_ptr:          dq 0xefbeadde; 0xDEADBEEF
 section .text
     ; extern printf
     print_message:

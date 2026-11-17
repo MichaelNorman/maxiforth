@@ -195,7 +195,7 @@ var fall-chain
 ;
 
 : resolve-chain \ ( head -- )
-    begin
+     begin
         dup     \ ( head -- head head )
     while
         dup @   \ ( head -- head previous )
@@ -343,9 +343,9 @@ var neg
 
 \ ( -- base_val )
 : get-base base @ ;
-: >hex 16 base ! ;
-: >dec 10 base ! ;
-: >oct 8 base ! ;
+: >hex 16 base ! ; immediate
+: >dec 10 base ! ; immediate
+: >oct 8 base ! ;  immediate
 
 \ digit-string gives you the address of the string directly
 var digit-string

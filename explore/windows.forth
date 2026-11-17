@@ -460,7 +460,7 @@ h" ExitProcess" const ExitProcess                         \ terminate process cl
 \     DWORD  flAllocationType,   // MEM_COMMIT | MEM_RESERVE = 0x3000
 \     DWORD  flProtect           // PAGE_READWRITE = 0x04, PAGE_EXECUTE_READWRITE = 0x40
 \ );
-     h" q|iiii" sigstr ! h" GetModuleHandleA" fstr ! frezbind virtualalloc
+     h" q|iiii" sigstr ! h" VirtualAlloc" fstr ! frezbind virtualalloc
 
 \
 \ BOOL VirtualProtect(
@@ -469,21 +469,21 @@ h" ExitProcess" const ExitProcess                         \ terminate process cl
 \     DWORD  flNewProtect,       // PAGE_EXECUTE_READ = 0x20
 \     PDWORD lpflOldProtect      // must be non-NULL, points to a writable DWORD
 \ );
-    h" d|iiii" sigstr ! h" GetModuleHandleA" fstr ! frezbind virtualprotect
+    h" d|iiii" sigstr ! h" VirtualProtect" fstr ! frezbind virtualprotect
 
 \ BOOL FlushInstructionCache(
 \     HANDLE  hProcess,          // GetCurrentProcess() = (HANDLE)-1
 \     LPCVOID lpBaseAddress,
 \     SIZE_T  dwSize
 \ );
-    h" d|iii" sigstr ! h" GetModuleHandleA" fstr ! frezbind flushicache
+    h" d|iii" sigstr ! h" FlushInstructionCache" fstr ! frezbind flushicache
 
 \ BOOL VirtualFree(
 \     LPVOID lpAddress,
 \     SIZE_T dwSize,             // must be 0 with MEM_RELEASE
 \     DWORD  dwFreeType          // MEM_RELEASE = 0x8000
 \ );
-    h" d|iii" sigstr ! h" GetModuleHandleA" fstr ! frezbind virtualfree
+    h" d|iii" sigstr ! h" VirtualFree" fstr ! frezbind virtualfree
 
 \ HANDLE CreateThread(
 \     LPSECURITY_ATTRIBUTES  lpThreadAttributes,  // NULL
@@ -494,7 +494,7 @@ h" ExitProcess" const ExitProcess                         \ terminate process cl
 \     LPDWORD                lpThreadId           // may be NULL
 \ );
 
-    h" q|iiii2" sigstr ! h" GetModuleHandleA" fstr ! frezbind createthread \ maxiForth is single-threaded!
+    h" q|iiii2" sigstr ! h" CreateThread" fstr ! frezbind createthread \ maxiForth is single-threaded!
 
 \ get-cb-mem ( size -- address)
 \ This will pass the correct protection and allocation type
@@ -504,30 +504,23 @@ var cb-mem
 : get-cb-mem
     cb-mem @ 0 =
     if
-        \  lpAddress,  dwSize, flNewProtect, lpflOldProtect
-        0 1 12 << >hex 4 >dec virtualalloc
+        0               \ lpAddress
+        1 11 <<         \ dwSize
+        >hex 3000 >dec  \ flNewProtect, given in hex for the constant, but it's the same in decimal
+        4               \ lpflOldProtect
+        virtualalloc
         dup cb-mem !
     else
         cb-mem @
     then
 ;
-var cb-loaded 0 cb-loaded !
 
-\ load-test-callback ( -- [true|false] <memory variables stored, callbacks loaded>)
-\ 0. if already loaded, bail (true)
-\ 1. true cb-loaded !
-\ 2. open the binary with fopen
-\ 3. get its length, store it in `len-stubs` and rewind it
-\ 4. virtualalloc 4kb with get-cb-mem (fills cb-mem)
-\ 5. bail if cb-mem is 0 (false)
-\ 6. store `cb-mem` in `vahere`
-\ 7. read `len-stubs` bytes from the binary into `vahere`
-\ 8. patch the address of `printf` into `callback-mem + 0x40`
-\ 8. `vahere @ len-stubs @ + vahere !`
-\ 9. protect the memory
+var cb-loaded  \ Cannot depend on first byte of allocated memory to be nonzero, so
+               \ we need a state variable
 
 var len-stubs
-var vahere
+var va-here
+\ TODO: Installation configuration needed if this will be distributed
 var winstubs-bin h" C:\\Users\\mknor\\CLionProjects\\core_forth\\windows\\winstubs.bin" winstubs-bin !
 var mode-read-binary h" rb" mode-read-binary !
 
@@ -536,29 +529,150 @@ var mode-read-binary h" rb" mode-read-binary !
     dup 0 2 fseek
     0 <>
     if
-        -1 exit
+        false exit
     then
     dup dup ftell
     swap rewind
 ;
+
+var last-stubs-file
+
+\ get and store printf
+var lp-printf
+
+h" printf" const nm-printf
+h" msvcrt.dll" const nm-msvcrt
+\ ( -- )
+
+: ?lp-printf!
+    lp-printf @     \ ( -- addr )
+    false <>        \ ( addr -- addr 0 | addr -1 )
+    if              \ ( addr 0 | addr -1 -- addr <continue> | addr <enter if> )
+        true exit   \ ( addr -- true )
+    then
+
+    nm-msvcrt cstr lla      \ ( -- [addr|0] )
+    dup 0=                  \ ( [addr|0] -- [addr|0] [addr|0] )
+    if                      \ ( [addr|0] [addr|0] -- [addr|0] <exit with false or continue> )
+        exit                \ false is already on the stack
+    then
+
+    nm-printf cstr gpa
+    lp-printf !
+
+    lp-printf @ 0=
+    if
+        false exit
+    then
+
+    true
+; ?lp-printf! drop
+
+var lppf-error
+h" \nCould not get pointer to printf function.\n"
+lppf-error !
+
+: check-lppf
+    0=
+    if
+        lppf-error @ type
+    then
+;
+?lp-printf!
+check-lppf
+
+var dummy
 \ ( -- [true|false] )
 : load-test-callback
     cb-loaded @
     if
-        true
+        true exit
     else
-        true cb-loaded !
-        winstubs-bin @ mode-read-binary @ fopen
-        dup 0 =
+        true cb-loaded ! \ making a promise, here!
+    then
 
-        if
-            exit \ false already on stack
-        then
+    winstubs-bin @ cstr mode-read-binary @ cstr fopen
 
-        get-file-length
-        dup -1 =
-        if
-            drop false exit \ WRONG!: remember to close the file
-        then
+    dup 0 =
+    if
+        false cb-loaded ! \ keep our promise from above
+        exit \ false already on stack
+    then
 
+    get-file-length
+    dup 0 =
+    if
+        false cb-loaded ! \ keep our promise from above
+        drop fclose drop false exit
+    then
+
+    len-stubs !
+
+    get-cb-mem
+    dup 0 =
+    if
+        false cb-loaded ! \ keep our promise from above
+        swap fclose drop exit \ ( fh 0 -- 0 )
+    then
+
+    va-here !
+
+    \ fread ( pbuffer size count fpointer -- count )
+    last-stubs-file !
+    va-here @           \ ( pbuffer
+    1                   \ size
+    len-stubs @         \ count
+    last-stubs-file @   \ fpointer
+    fread               \ -- count )
+
+    cb-mem @ + va-here !
+    ?lp-printf!
+    false =
+    if
+        false cb-loaded ! \ keep our promise from above
+        false exit
+    then
+    lp-printf @ cb-mem @ >hex 40 >dec + ! \ 0x40 is the location inside the stub
+                                          \ in which to write the address of printf
+
+    \ BOOL VirtualProtect(
+    \     LPVOID lpAddress,
+    \     SIZE_T dwSize,
+    \     DWORD  flNewProtect,       // PAGE_EXECUTE_READ = 0x20
+    \     PDWORD lpflOldProtect      // must be non-NULL, points to a writable DWORD
+    \ );
+    cb-mem @ 1 11 << >hex 20 >dec dummy virtualprotect
+    1 <>
+    if
+        false cb-loaded ! \ keep our promise from above
+        false exit
+    then
+
+    \ BOOL FlushInstructionCache(
+    \     HANDLE  hProcess,          // GetCurrentProcess() = (HANDLE)-1
+    \     LPCVOID lpBaseAddress,
+    \     SIZE_T  dwSize
+    \ );
+    -1 cb-mem @ 1 11 << flushicache
 ;
+
+h" v|" const void-zero
+: dynamic-hello
+    cb-mem @ void-zero bind
+;
+d" \nCould not load winstubs.bin.\n" const stubs-fail-msg
+
+\ ( -- <name> ) bind the stub to the next input word, or consume that word and report failure
+: ?dynamic-hello
+    load-test-callback
+    if
+        dynamic-hello
+    else
+        wbuf word drop
+        stubs-fail-msg type
+    then
+;
+
+get-cb-mem drop ?dynamic-hello hi-there
+
+10 emit hi-there
