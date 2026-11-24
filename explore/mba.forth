@@ -1,4 +1,4 @@
-d" We're running dll.forth!" 10 emit type
+\ d" We're running dll.forth!" 10 emit type
 var u32
 var h_u32
 var mba

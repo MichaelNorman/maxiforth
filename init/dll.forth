@@ -1,7 +1,7 @@
 
 
 
-d" We ran dll.forth! JetBrains sucks!" 10 emit type 10 emit
+\ d" We ran dll.forth! JetBrains sucks!" 10 emit type 10 emit
 
 \ Runtime DLL loading
 

@@ -1,3 +1,4 @@
+
 var sigstr
 var fstr
 var errstr
@@ -449,10 +450,10 @@ h" EndDialog" const EndDialog                             \ close Go To dialog
 h" SetFocus" const SetFocus                               \ focus edit control after commands
 h" ExitProcess" const ExitProcess                         \ terminate process cleanly
 
-\ ============= proof of concept for "Hello, dynamic world!" ================= \
+\ ============= Proof of concept for "Hello, dynamic world!" ================= \
 
-\ =============================== kernel32.dll =============================== \
-    h" kernel32.dll" fstr !  uselib
+\ ================ Load virtual memory functions from kernel32.dll =========== \
+    h" kernel32.dll" fstr ! uselib
 \
 \ LPVOID VirtualAlloc(
 \     LPVOID lpAddress,          // NULL = let the system choose
@@ -515,7 +516,7 @@ var cb-mem
     then
 ;
 
-var cb-loaded  \ Cannot depend on first byte of allocated memory to be nonzero, so
+var winstubs-loaded  \ Cannot depend on first byte of allocated memory to be nonzero, so
                \ we need a state variable
 
 var len-stubs
@@ -542,67 +543,29 @@ var lp-printf
 
 h" printf" const nm-printf
 h" msvcrt.dll" const nm-msvcrt
-\ ( -- )
-
-: ?lp-printf!
-    lp-printf @     \ ( -- addr )
-    false <>        \ ( addr -- addr 0 | addr -1 )
-    if              \ ( addr 0 | addr -1 -- addr <continue> | addr <enter if> )
-        true exit   \ ( addr -- true )
-    then
-
-    nm-msvcrt cstr lla      \ ( -- [addr|0] )
-    dup 0=                  \ ( [addr|0] -- [addr|0] [addr|0] )
-    if                      \ ( [addr|0] [addr|0] -- [addr|0] <exit with false or continue> )
-        exit                \ false is already on the stack
-    then
-
-    nm-printf cstr gpa
-    lp-printf !
-
-    lp-printf @ 0=
-    if
-        false exit
-    then
-
-    true
-; ?lp-printf! drop
-
-var lppf-error
-h" \nCould not get pointer to printf function.\n"
-lppf-error !
-
-: check-lppf
-    0=
-    if
-        lppf-error @ type
-    then
-;
-?lp-printf!
-check-lppf
 
 var dummy
 \ ( -- [true|false] )
-: load-test-callback
-    cb-loaded @
+: load-winstubs
+    winstubs-loaded @
     if
         true exit
     else
-        true cb-loaded ! \ making a promise, here!
+        true winstubs-loaded ! \ making a promise!
     then
 
     winstubs-bin @ cstr mode-read-binary @ cstr fopen
 
     dup 0 =
     if
-        false cb-loaded ! \ keep our promise from above
+        false winstubs-loaded ! \ keep our promise from above
         exit \ false already on stack
     then
 
     get-file-length
     dup 0 =
     if
-        false cb-loaded ! \ keep our promise from above
+        false winstubs-loaded ! \ keep our promise from above
         drop fclose drop false exit
     then
 
@@ -611,7 +574,7 @@ var dummy
     get-cb-mem
     dup 0 =
     if
-        false cb-loaded ! \ keep our promise from above
+        false winstubs-loaded ! \ keep our promise from above
         swap fclose drop exit \ ( fh 0 -- 0 )
     then
 
@@ -626,53 +589,15 @@ var dummy
     fread               \ -- count )
 
     cb-mem @ + va-here !
-    ?lp-printf!
-    false =
-    if
-        false cb-loaded ! \ keep our promise from above
-        false exit
-    then
-    lp-printf @ cb-mem @ >hex 40 >dec + ! \ 0x40 is the location inside the stub
-                                          \ in which to write the address of printf
-
-    \ BOOL VirtualProtect(
-    \     LPVOID lpAddress,
-    \     SIZE_T dwSize,
-    \     DWORD  flNewProtect,       // PAGE_EXECUTE_READ = 0x20
-    \     PDWORD lpflOldProtect      // must be non-NULL, points to a writable DWORD
-    \ );
-    cb-mem @ 1 11 << >hex 20 >dec dummy virtualprotect
-    1 <>
-    if
-        false cb-loaded ! \ keep our promise from above
-        false exit
-    then
-
-    \ BOOL FlushInstructionCache(
-    \     HANDLE  hProcess,          // GetCurrentProcess() = (HANDLE)-1
-    \     LPCVOID lpBaseAddress,
-    \     SIZE_T  dwSize
-    \ );
-    -1 cb-mem @ 1 11 << flushicache
 ;
 
-h" v|" const void-zero
-: dynamic-hello
-    cb-mem @ void-zero bind
-;
-d" \nCould not load winstubs.bin.\n" const stubs-fail-msg
+\ I need to decide on a memory layout for winstubs.asm
+\ Some of that layout could be decided in Forth. For example,
+\ I could write vms into the start of the dynamically allocated
+\ memory from here. In that case, it's possible I want to tell
+\ the assembler to move .data to the start of the built object.
+\ If I did this, then then the rest of the address table, if I
+\ wanted one, would start right after it.
 
-\ ( -- <name> ) bind the stub to the next input word, or consume that word and report failure
-: ?dynamic-hello
-    load-test-callback
-    if
-        dynamic-hello
-    else
-        wbuf word drop
-        stubs-fail-msg type
-    then
-;
-
-get-cb-mem drop ?dynamic-hello hi-there
-
-10 emit hi-there
+\ Design:
+\ 1. Addresses are manually patched with magic numbers

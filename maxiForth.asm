@@ -1,6 +1,6 @@
 %include "macros.ninc"
 %include "primitives.ninc"
-%include "callbacks.ninc"
+; %include "callbacks.ninc"
 
 section .rodata
 
@@ -290,8 +290,8 @@ section .data
     regular_entry _find_word, ",", _comma
     regular_entry _comma, "c,", _char_comma
     regular_entry _char_comma, "run", _run
-    regular_entry _run, "rp@", _rp
-    regular_entry _run, "rp0", _rp0
+    regular_entry _run, "rp@", _get_rp
+    regular_entry _get_rp, "rp0", _rp0
     regular_entry _rp0, "sp0", _sp0
     regular_entry _sp0, "rp!", _rp_store
     regular_entry _rp_store, "sp!", _sp_store
@@ -321,12 +321,10 @@ section .data
     regular_entry _movrsp, "bindrargs", _bindrargs
     regular_entry _bindrargs, "rsp", _rsp
     regular_entry _rsp, "bindret", _bindret
-    regular_entry _bindret, "do_call", _do_call
-    regular_entry _do_call, "tt-addr", _test_thunk_addr
-    regular_entry _test_thunk_addr, "cbtramp", _cb_thread
-    regular_entry _cb_thread, "wbuf", push_wbuf
+    regular_entry _bindret, "vms", _vms
+    regular_entry _vms, "do_call", _do_call
     initial_latest:
-    regular_entry push_wbuf, "accept", _accept
+    regular_entry _do_call, "wbuf", push_wbuf
 
 section .bss
     alignb 16

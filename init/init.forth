@@ -560,9 +560,7 @@ d" \nThree is the biggest number." const argue-str
     \ all breaks go here
 ;
 
-d" We're running the new init.forth!" 10 emit type
+\ d" We're running the new init.forth!" 10 emit type
 
 \ This is the hook into additional user-specified bootup code.
 include @MAXIFORTH_ROOT@\init\custom.forth
-
-

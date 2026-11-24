@@ -8,7 +8,7 @@
     jmp [W_REG]
 %endmacro
 
-%macro enter_call 0
+%macro enter_call 0 ; TODO: we will also need to push the address of a throw handler, so this will take 1 argument
     push rbx
     push rbp
     push rdi
@@ -18,10 +18,10 @@
     push r14
     push r15
     mov rbp, rsp
-    and rsp, -0x10
+    and rsp, -0x10 ; TODO: Depend on maxiForth's alignment promises, instead.
 %endmacro
 
-%macro leave_call 0
+%macro leave_call 0 ; TODO: Pop the throw handler.
     mov rsp, rbp
     pop r15
     pop r14
@@ -124,7 +124,7 @@
     int3 ; TODO: Implement proper error handling for Windows or break abort out into a Forth word.
 %endmacro
 
-%macro call_c 2
+%macro call_c 2 ; TODO: Integrate this with the enter_call/leave_call macros (or just omit)
     sub rsp, %2
     call %1
     add rsp, %2
@@ -153,7 +153,7 @@
 ;     ; docol @ , 0 , XT(rt_lit) value XT(exit)
 ; %endmacro
 
-
+; overflow check on overflow stack
 %macro var_of 6 ; base, tos, width, items, stack_size, error
     push r8
     push r9
@@ -169,6 +169,7 @@
     pop r8
 %endmacro
 
+; underflow check on variable stack
 %macro var_uf 5; base, tos, width, items, error
     push r8
     push r9
@@ -195,7 +196,7 @@
     mov %1, [%1]
 %endmacro
 
-%macro c_reg_stash 0
+%macro c_reg_stash 0 ; TODO: Sort out calling conventions globally
     push rcx
     push rdx
     push r8

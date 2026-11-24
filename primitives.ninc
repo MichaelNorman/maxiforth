@@ -186,9 +186,9 @@ _get_sp:
     stack_pushq DATA_TOS_REG, DATA_TOS_REG
     _NEXT
 
-_rp:
-    rs_overflow 1
-    stack_pushq RETURN_TOS_REG, RETURN_TOS_REG
+_get_rp:
+    ds_overflow 1
+    stack_pushq DATA_TOS_REG, RETURN_TOS_REG
     _NEXT
 
 ; ********************* state variables ********************* ;
@@ -1138,5 +1138,13 @@ _free:
     call free
     add rsp, 32
     c_reg_restore
+    _NEXT
+
+; *************************** ffi ************************ ;
+
+_vms:
+    ds_overflow 1
+    lea r8, [rel vm_state]
+    stack_pushq r8, DATA_TOS_REG
     _NEXT
 

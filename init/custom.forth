@@ -8,10 +8,10 @@ include @MAXIFORTH_ROOT@\init\dll.forth
 
 include @MAXIFORTH_ROOT@\explore\mba.forth
 
-d" We're running the new custom.forth!" 10 emit type
+\ d" We're running the new custom.forth!" 10 emit type
 
 \ include @MAXIFORTH_ROOT@\explore\cbtest.forth
-
-include @MAXIFORTH_ROOT@\explore\windows.forth
+include @MAXIFORTH_ROOT@\windows\windows.forth
 
 \ include @MAXIFORTH_ROOT@\explore\forthpad.forth
+
